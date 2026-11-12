@@ -1,0 +1,38 @@
+const { contextBridge, ipcRenderer } = require('electron');
+const inv = (c, ...a) => ipcRenderer.invoke(c, ...a);
+contextBridge.exposeInMainWorld('xapi', {
+  platform: process.platform,
+  getSettings: () => inv('settings:get'),
+  setSettings: (p) => inv('settings:set', p),
+  pickDir: () => inv('dir:pick'),
+  openDir: () => inv('dir:open'),
+  listLib: () => inv('lib:list'),
+  delLib: (rel) => inv('lib:del', rel),
+  revealLib: (rel) => inv('lib:reveal', rel),
+  copyLib: (rel) => inv('lib:copy', rel),
+  readLib: (rel) => inv('lib:read', rel),
+  saveHD: (o) => inv('lib:hd', o),
+  copyImage: (bytes) => inv('img:copy', bytes),
+  saveElements: (o) => inv('save:elements', o),
+  saveAs: (o) => inv('save:as', o),
+  capture: () => inv('capture:start'),
+  importImage: () => inv('import:dialog'),
+  hideWindow: () => inv('win:hide'),
+  checkUpdate: () => inv('update:check'),
+  openExternal: (u) => inv('open:external', u),
+  openUserData: () => inv('open:userdata'),
+  getDoc: (n) => inv('doc:get', n),
+  resetSettings: () => inv('settings:reset'),
+  onNav: (cb) => ipcRenderer.on('nav', (e, v) => cb(v)),
+  onUpdate: (cb) => ipcRenderer.on('update', (e, u) => cb(u)),
+  onImage: (cb) => ipcRenderer.on('capture:image', (e, d) => cb(d)),
+  onSettings: (cb) => ipcRenderer.on('settings:changed', (e, s) => cb(s)),
+  onToast: (cb) => ipcRenderer.on('toast', (e, t) => cb(t)),
+  /* 框选覆盖层用 */
+  overlayInit: (cb) => ipcRenderer.on('overlay:init', (e, d) => cb(d)),
+  overlayDone: (rect) => ipcRenderer.send('overlay:done', rect),
+  /* 点选提取层用 */
+  liveInit: (cb) => ipcRenderer.on('live:init', (e, d) => cb(d)),
+  liveSave: (o) => inv('live:save', o),
+  liveDone: () => ipcRenderer.send('live:done')
+});

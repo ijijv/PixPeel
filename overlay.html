@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><title>PixPeel</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;cursor:crosshair;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+#hint{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:rgba(20,19,28,.88);color:#fff;font:13px/1.4 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:8px 16px;border-radius:999px;pointer-events:none;transition:opacity .25s}
+#size{position:fixed;display:none;background:rgba(20,19,28,.9);color:#fff;font:12px/1 -apple-system,"Microsoft YaHei",sans-serif;padding:4px 8px;border-radius:6px;pointer-events:none}
+</style></head><body>
+<canvas id="c"></canvas><div id="hint"></div><div id="size"></div>
+<script src="renderer/i18n.js"></script>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d'),sz=document.getElementById('size'),hint=document.getElementById('hint');
+let img=null,W=innerWidth,H=innerHeight,sel=null,start=null,done=false;
+function fit(){const r=devicePixelRatio||1;cv.width=Math.round(innerWidth*r);cv.height=Math.round(innerHeight*r);W=innerWidth;H=innerHeight;g.setTransform(r,0,0,r,0,0);draw()}
+function draw(){
+  g.clearRect(0,0,W,H);if(!img)return;
+  g.drawImage(img,0,0,W,H);
+  g.fillStyle='rgba(0,0,0,.5)';
+  if(!sel){g.fillRect(0,0,W,H);return}
+  g.beginPath();g.rect(0,0,W,H);g.rect(sel.x,sel.y,sel.w,sel.h);g.fill('evenodd');
+  g.strokeStyle='#ff6b3d';g.lineWidth=2;g.strokeRect(sel.x+.5,sel.y+.5,sel.w,sel.h);
+}
+function finish(r){if(done)return;done=true;window.xapi.overlayDone(r)}
+addEventListener('mousedown',e=>{if(e.button===2){finish(null);return}start={x:e.clientX,y:e.clientY};sel={x:e.clientX,y:e.clientY,w:0,h:0};hint.style.opacity=0});
+addEventListener('mousemove',e=>{
+  if(!start)return;
+  const x=Math.min(start.x,e.clientX),y=Math.min(start.y,e.clientY),w=Math.abs(e.clientX-start.x),h=Math.abs(e.clientY-start.y);
+  sel={x,y,w,h};draw();
+  sz.style.display='block';sz.textContent=Math.round(w)+' × '+Math.round(h);
+  sz.style.left=Math.min(W-90,x)+'px';sz.style.top=Math.max(4,y-26)+'px';
+});
+addEventListener('mouseup',e=>{if(e.button!==0||!start)return;const r=sel;start=null;finish(r&&r.w>=4&&r.h>=4?r:null)});
+addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('keydown',e=>{if(e.key==='Escape')finish(null)});
+addEventListener('resize',fit);
+window.xapi.overlayInit(d=>{I18N.setLang(d.lang||'en');hint.textContent=t('ovHint');const i=new Image();i.onload=()=>{img=i;fit()};i.src=d.dataURL});
+fit();
+</script></body></html>

@@ -1,0 +1,127 @@
+{
+  "name": "pixpeel",
+  "productName": "PixPeel",
+  "version": "1.0.0",
+  "description": "Capture or import an image, auto-split it into elements and save them as transparent PNG stickers. 一键拆元素，存成透明底贴纸。",
+  "main": "main.js",
+  "author": "PixPeel contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/ijijv/PixPeel#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ijijv/PixPeel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ijijv/PixPeel/issues"
+  },
+  "keywords": [
+    "electron",
+    "screenshot",
+    "sticker",
+    "segmentation",
+    "transparent-png"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "icons": "python3 tools/make-icons.py",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win --x64 --ia32 --arm64",
+    "dist:mac": "electron-builder --mac --x64 --arm64",
+    "dist:linux": "electron-builder --linux --x64 --arm64",
+    "dist:win64": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.pixpeel.app",
+    "productName": "PixPeel",
+    "copyright": "Copyright © 2026 PixPeel contributors",
+    "publish": null,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib.js",
+      "server.js",
+      "config.js",
+      "overlay.html",
+      "live.html",
+      "renderer/**/*",
+      "docs/**/*",
+      "build/tray*.png",
+      "build/icon.png",
+      "build/notify.png",
+      "!**/*.map"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis"
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}-win-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ],
+      "language": "2052",
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PixPeel",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "include": "build/installer.nsh",
+      "warningsAsErrors": false
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.graphics-design",
+      "target": [
+        {
+          "target": "dmg"
+        },
+        {
+          "target": "zip"
+        }
+      ],
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "extendInfo": {
+        "NSScreenCaptureUsageDescription": "PixPeel needs to capture the screen so you can pick elements from it. / 需要截取屏幕画面，用来拆出其中的元素。"
+      }
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Graphics",
+      "maintainer": "PixPeel contributors <noreply@users.noreply.github.com>",
+      "synopsis": "Split screenshots into transparent PNG elements",
+      "target": [
+        {
+          "target": "AppImage"
+        },
+        {
+          "target": "deb"
+        },
+        {
+          "target": "rpm"
+        }
+      ],
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
+    }
+  }
+}

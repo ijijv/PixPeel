@@ -1,0 +1,108 @@
+<!doctype html><html><head><meta charset="utf-8"><title>PixPeel</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:transparent;cursor:crosshair;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+#pill{position:fixed;left:50%;top:16px;transform:translateX(-50%);display:flex;gap:14px;align-items:center;background:rgba(14,17,24,.92);color:#e9ecf4;font:12.5px/1.4 "HarmonyOS Sans SC","PingFang SC","Microsoft YaHei UI",system-ui,sans-serif;padding:9px 16px;border-radius:999px;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);white-space:nowrap}
+#pill b{color:#52e3bd;font-weight:600}#pill .n{color:#8d96ac}
+#pill.bad{background:rgba(120,40,24,.94)}
+kbd{background:#232a3c;border:1px solid #38425c;border-radius:5px;padding:0 5px;font:11px ui-monospace,Consolas,monospace}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="pill"><span id="msg"></span><span class="n" id="keys"></span><b id="cnt"></b></div>
+<script src="renderer/i18n.js"></script><script src="renderer/engine.js"></script>
+<script>
+const api=window.xapi,cv=document.getElementById('c'),g=cv.getContext('2d'),msg=document.getElementById('msg'),cnt=document.getElementById('cnt'),pill=document.getElementById('pill');
+let sh=null,sctx=null,K=1,CW=0,CH=0,PW=0,PH=0,merge=6,mx=-1,my=-1,cur=null,timer=null,saved=0,busy=false,flash=null;
+const MINT='#52e3bd';
+function fit(){const r=devicePixelRatio||1;cv.width=Math.round(innerWidth*r);cv.height=Math.round(innerHeight*r);g.setTransform(r,0,0,r,0,0);CW=innerWidth;CH=innerHeight;draw()}
+function say(t,bad){msg.textContent=t;pill.classList.toggle('bad',!!bad)}
+function cropImg(x0,y0,w,h){return{w,h,data:sctx.getImageData(x0,y0,w,h).data}}
+/* 在点击处找“一个元素”：由小到大试几个窗口，找背景是纯色的那个；都不行就用魔棒兜底 */
+function pickAt(px,py){
+  const base=Math.max(120,Math.round(170*K));
+  for(const mul of [1,2.2,4.5]){
+    const half=Math.round(base*mul);
+    const x0=Math.max(0,px-half),y0=Math.max(0,py-half),x1=Math.min(PW,px+half),y1=Math.min(PH,py+half),w=x1-x0,h=y1-y0;
+    if(w<16||h<16)continue;
+    const img=cropImg(x0,y0,w,h);SEG.src=img;
+    const f=segFg(img,26);
+    if(!f.fg||f.mode==='color')continue;
+    const m=Math.max(0,Math.round(merge*K/1.5)),dm=segDil(f.fg,w,h,m),cc=segCC(dm,w,h);
+    const lab=cc.lab[(py-y0)*w+(px-x0)];if(!lab)continue;
+    const cp=cc.comps[lab];
+    const clipL=x0>0,clipT=y0>0,clipR=x1<PW,clipB=y1<PH;
+    const touch=(clipL&&cp.x0<=1)||(clipT&&cp.y0<=1)||(clipR&&cp.x1>=w-2)||(clipB&&cp.y1>=h-2);
+    if(touch&&mul<4.5)continue;
+    if(cp.area<(12*K*K))continue;
+    const mk=new Uint8Array(w*h);let area=0;
+    for(let i=0;i<mk.length;i++)if(cc.lab[i]===lab&&f.fg[i]){mk[i]=1;area++}
+    if(!area)continue;
+    SEG.layers=[];const L=segLayerFromFull(mk,w,h,t('elem'));
+    if(L)return{L,img,x0,y0,how:'bg'};
+  }
+  /* 兜底：魔棒 */
+  const half=Math.round(260*K),x0=Math.max(0,px-half),y0=Math.max(0,py-half),x1=Math.min(PW,px+half),y1=Math.min(PH,py+half),w=x1-x0,h=y1-y0;
+  if(w<16||h<16)return null;
+  const img=cropImg(x0,y0,w,h);SEG.src=img;
+  const mk=segWand(px-x0,py-y0,30);let a=0;for(let i=0;i<mk.length;i++)a+=mk[i];
+  if(a<12*K*K||a>w*h*.6)return null;
+  SEG.layers=[];const L=segLayerFromFull(mk,w,h,t('elem'));
+  return L?{L,img,x0,y0,how:'wand'}:null;
+}
+function tintOf(L){
+  if(L._m)return L._m;
+  const c=document.createElement('canvas');c.width=L.bw;c.height=L.bh;const x=c.getContext('2d'),id=x.createImageData(L.bw,L.bh);
+  for(let i=0;i<L.m.length;i++)if(L.m[i]){const j=i*4;id.data[j]=82;id.data[j+1]=227;id.data[j+2]=189;id.data[j+3]=255}
+  x.putImageData(id,0,0);return L._m=c;
+}
+function draw(){
+  g.clearRect(0,0,CW,CH);
+  g.fillStyle='rgba(0,0,0,0.01)';g.fillRect(0,0,CW,CH);     // 几乎看不见，但保证能接住鼠标
+  if(cur){
+    const L=cur.L,x=(cur.x0+L.bx)/K,y=(cur.y0+L.by)/K,w=L.bw/K,h=L.bh/K;
+    g.globalAlpha=.36;g.drawImage(tintOf(L),x,y,w,h);g.globalAlpha=1;
+    g.strokeStyle=MINT;g.lineWidth=2;g.setLineDash([7,5]);g.strokeRect(x-1,y-1,w+2,h+2);g.setLineDash([]);
+    const t=`${L.bw} × ${L.bh}`;g.font='12px ui-monospace,Consolas,monospace';const tw=g.measureText(t).width+14;
+    const ty=y>26?y-24:y+h+6;g.fillStyle='rgba(14,17,24,.92)';g.fillRect(x,ty,tw,20);g.fillStyle='#e9ecf4';g.fillText(t,x+7,ty+14);
+  }
+  if(flash){g.fillStyle='rgba(255,255,255,'+flash.a+')';g.fillRect(flash.x,flash.y,flash.w,flash.h)}
+}
+function refresh(){
+  if(mx<0||busy)return;
+  cur=pickAt(Math.round(mx*K),Math.round(my*K));
+  cnt.textContent=saved?t('lvCnt',{n:saved}):'';
+  if(cur)say(cur.how==='wand'?t('lvWand'):t('lvClick'));
+  else say(t('lvNone'),false);
+  draw();
+}
+cv.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;clearTimeout(timer);timer=setTimeout(refresh,55)});
+cv.addEventListener('wheel',e=>{e.preventDefault();merge=Math.max(0,Math.min(70,merge+(e.deltaY<0?5:-5)));refresh();say(t('lvRange',{m:merge})+(cur?'':t('lvNoneS')))},{passive:false});
+cv.addEventListener('mousedown',async e=>{
+  if(e.button===2){api.liveDone();return}
+  if(e.button!==0||busy)return;
+  mx=e.clientX;my=e.clientY;clearTimeout(timer);refresh();
+  if(!cur){say(t('lvNone'),true);return}
+  busy=true;
+  try{
+    SEG.src=cur.img;const ct=segCut(cur.L,1);
+    const bin=atob(ct.cv.toDataURL('image/png').split(',')[1]),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const r=await api.liveSave({data:bytes,w:ct.cv.width,h:ct.cv.height});
+    if(r&&r.ok){saved=r.count;flash={x:(cur.x0+cur.L.bx)/K,y:(cur.y0+cur.L.by)/K,w:cur.L.bw/K,h:cur.L.bh/K,a:.55};draw();
+      cnt.textContent=t('lvCnt',{n:saved});say(t('lvSaved'));
+      setTimeout(()=>{flash=null;draw()},140);
+    }else say(t('lvSaveFail'),true);
+  }catch(err){say(t('lvErr',{e:String(err.message||err).slice(0,40)}),true)}
+  busy=false;
+});
+addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('keydown',e=>{if(e.key==='Escape')api.liveDone()});
+addEventListener('resize',fit);
+api.liveInit(async d=>{
+  I18N.setLang(d.lang||'en');document.getElementById('msg').textContent=t('lvHint');document.getElementById('keys').innerHTML=t('lvKeys');
+  const bm=await createImageBitmap(new Blob([d.png],{type:'image/png'}));
+  PW=bm.width;PH=bm.height;K=PW/d.w;
+  const c=document.createElement('canvas');c.width=PW;c.height=PH;sctx=c.getContext('2d',{willReadFrequently:true});sctx.drawImage(bm,0,0);
+  window.__ready=true;
+});
+fit();
+</script></body></html>
