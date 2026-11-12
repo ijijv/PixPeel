@@ -18,7 +18,7 @@ Everything runs locally. No uploads, no account.
 - **Capture mode**: the screen dims, drag a region, elements are split automatically, pick and save as transparent PNGs.
 - **Click-to-extract mode**: the screen stays as it is; hover highlights an element, click saves it straight to the library. Click as many as you like.
 - **Import images**: button, drag & drop, or `Ctrl+V`.
-- **Refine tools**: Pick / Wand / Lasso / AI pick (optional, downloads a small model on first use); export layered SVG.
+- **Refine tools**: Pick / Wand / Lasso / AI pick (optional, downloads a small model on first use and falls back to the hf-mirror.com mirror in China); export layered SVG.
 - **Board**: compose pictures from library elements or imported images; pick canvas size and transparent / solid background; move, scale, rotate, delete; export PNG / JPG or save back to the library.
 - **Undo / zoom / shortcuts**: Ctrl+Z / Ctrl+Shift+Z on both the Extract page and the Board, wheel zoom, Space-drag pan; every shortcut is listed in Settings.
 - **Enhance**: the library flags low-res items and upscales + sharpens them locally (classical resampling, not generative AI), saving a new `-HD` file and keeping the original.
