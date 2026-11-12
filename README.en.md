@@ -65,6 +65,8 @@ Elements are saved to `Pictures/PixPeel` by default (changeable).
 
 ### Link with “小剪动画”
 
+“小剪动画” is a separate companion tool (a local animation editor that runs in the browser) — it is a different program from PixPeel. You only need this step if you already have “小剪动画.html”; if all you want is splitting images into transparent stickers, ignore it entirely.
+
 1. In PixPeel settings make sure “Let the editor read the library” is on (`127.0.0.1:17652`, this computer only).
 2. Open the **locally downloaded “小剪动画.html”**, go to “贴图” on the left and click “Connect PixPeel desktop”.
 3. Newly saved elements then appear automatically.
