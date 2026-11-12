@@ -44,6 +44,9 @@
 
 每个版本附带 `SHA256SUMS.txt`，可用来校验下载是否完整。
 
+另外还有配套的网页版动画编辑器「小剪动画」，单独下载即可，不用装 PixPeel 也能用：
+[xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html)。
+
 **升级**：直接运行新版安装包，会自动覆盖旧版，设置和素材都保留。
 
 ### 首次运行的提示
@@ -70,7 +73,7 @@
 
 “小剪动画”是另一个配套工具（一个跑在浏览器里的本地动画编辑器），和 PixPeel 是两个独立的软件。只有你想拿它做动画时才需要这一步；只是想把图片拆成透明贴纸的话，完全不用管它。
 
-1. 下载 [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/download/v1.0.0/xiaoji-animation.html)（就是「小剪动画」，单文件网页版，双击就能用，不用装任何东西）。
+1. 下载 [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html)（就是「小剪动画」，单文件网页版，双击就能用，不用装任何东西）。
 2. 在 PixPeel 设置里确认“允许小剪动画读取素材库”已开启（默认 `127.0.0.1:17652`，只在本机可访问）。
 3. 用浏览器打开**下载到本地的 xiaoji-animation.html**，进入左侧“贴纸”，点“连接 PixPeel 桌面版”。
 4. 之后新保存的元素会自动出现在贴图里；也可以勾上“自动同步”，桌面版一存新元素就自动进贴图。

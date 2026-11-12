@@ -44,6 +44,9 @@ Get the file for your system from [Releases](https://github.com/ijijv/PixPeel/re
 
 Each release includes `SHA256SUMS.txt` to verify downloads.
 
+There is also a companion web animation editor, “小剪动画” — download it on its own, it works without installing PixPeel:
+[xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html).
+
 **Upgrading**: just run the new installer; it replaces the old version and keeps your settings and saved elements.
 
 ### First-run notes
@@ -69,7 +72,7 @@ Elements are saved to `Pictures/PixPeel` by default (changeable).
 
 “小剪动画” is a separate companion tool (a local animation editor that runs in the browser) — it is a different program from PixPeel. You only need this step if you want to make animations with it; if all you want is splitting images into transparent stickers, ignore it entirely.
 
-1. Download [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/download/v1.0.0/xiaoji-animation.html) — that is “小剪动画”, a single self-contained web page; double-click to open, nothing to install.
+1. Download [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html) — that is “小剪动画”, a single self-contained web page; double-click to open, nothing to install.
 2. In PixPeel settings make sure “Let the editor read the library” is on (`127.0.0.1:17652`, this computer only).
 3. Open the **locally downloaded xiaoji-animation.html**, go to “贴纸” on the left and click “Connect PixPeel desktop”.
 4. Newly saved elements then appear automatically. You can also tick “自动同步” so anything you save in the desktop app lands in the sticker list right away.
