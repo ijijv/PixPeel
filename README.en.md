@@ -33,12 +33,14 @@ Get the file for your system from [Releases](https://github.com/ijijv/PixPeel/re
 
 | System | File | Notes |
 | --- | --- | --- |
+| Windows (not sure which one? take this) | `PixPeel-Setup-x.y.z-win.exe` | One installer that adapts to 64-bit / 32-bit / ARM, about 230 MB |
 | Windows 64-bit (most PCs) | `PixPeel-Setup-x.y.z-win-x64.exe` | Wizard: license → install path → progress → optional desktop shortcut |
 | Windows 32-bit | `PixPeel-Setup-x.y.z-win-ia32.exe` | Older PCs |
 | Windows on ARM | `PixPeel-Setup-x.y.z-win-arm64.exe` | |
 | macOS Apple Silicon | `PixPeel-x.y.z-mac-arm64.dmg` | |
 | macOS Intel | `PixPeel-x.y.z-mac-x64.dmg` | |
-| Linux | `…-linux-x64.AppImage` / `.deb` / `.rpm` (arm64 too) | |
+| Linux 64-bit | `PixPeel-x.y.z-linux-x86_64.AppImage` / `…-linux-amd64.deb` / `…-linux-x86_64.rpm` | AppImage needs no install, deb for Debian / Ubuntu, rpm for Fedora / openSUSE |
+| Linux ARM64 | `PixPeel-x.y.z-linux-arm64.AppImage` / `…-linux-arm64.deb` / `…-linux-aarch64.rpm` | Raspberry Pi and friends |
 
 Each release includes `SHA256SUMS.txt` to verify downloads.
 
@@ -75,7 +77,7 @@ Language, theme, save folder, both hotkeys, launch at login, close behavior (tra
 
 ## Run from source / build
 
-Requires [Node.js](https://nodejs.org) 18+.
+Requires [Node.js](https://nodejs.org) 20+.
 
 ```bash
 npm install
@@ -88,6 +90,9 @@ npm run dist:linux   # on Linux: AppImage / deb / rpm (x64 / arm64)
 
 Output goes to `dist/`. macOS packages can only be built on macOS, so use GitHub Actions for cross-platform releases.
 
+> The rpm package depends on the `rpmbuild` version of the build machine: newer rpm (6.x) dropped `xzmt` compression and the bundled electron-builder cannot produce it.
+> For a reliable AppImage + deb, use `npm run dist:linux:core`; to build only the rpm, use `npm run dist:linux:rpm`.
+
 ### Publishing a release
 
 1. Bump `version` in `package.json` and describe changes in `docs/CHANGELOG*.md`.
@@ -97,6 +102,7 @@ Output goes to `dist/`. macOS packages can only be built on macOS, so use GitHub
    git tag v1.0.1 && git push origin v1.0.1
    ```
 4. GitHub Actions (`.github/workflows/release.yml`) builds on Windows / macOS / Linux, creates the Release and attaches every installer plus `SHA256SUMS.txt`.
+5. The Linux rpm package depends on the build machine's rpm version, so the CI Linux job is pinned to `ubuntu-24.04`. If you move to a newer runner, check that rpm still builds (AppImage and deb are unaffected).
 
 To rename the app, edit `config.js` and `package.json` (`productName`, `appId`).
 
@@ -116,6 +122,7 @@ tools/      icon generator
 - On busy / photographic backgrounds the automatic detection may pick the whole background block; use Wand / Lasso / AI pick.
 - On Linux Wayland, global hotkeys, screen capture and the transparent overlay may not work; the tray icon needs the AppIndicator extension on GNOME.
 - Builds are unsigned (see above). “Update” currently means “tell you a new version exists and open the download page”, not a silent in-place update.
+- Quit PixPeel from the tray before uninstalling, otherwise the uninstaller thinks the app is still running.
 
 ## Privacy
 

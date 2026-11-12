@@ -7,3 +7,5 @@ __pycache__/
 *.pyc
 .vscode/
 .idea/
+# 本地 npm 镜像设置（国内加速用），不进仓库
+.npmrc

@@ -16,9 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, script: 'dist:win',   name: windows }
-          - { os: macos-latest,   script: 'dist:mac',   name: macos }
-          - { os: ubuntu-latest,  script: 'dist:linux', name: linux }
+          - { os: windows-latest, script: 'dist:win',       name: windows }
+          - { os: macos-latest,   script: 'dist:mac',       name: macos }
+          # Linux 固定用 24.04：26.04 自带的 rpm 6 移除了 xzmt 压缩，fpm 打不出 rpm 包
+          - { os: ubuntu-24.04,   script: 'dist:linux:core', name: linux }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -26,14 +27,24 @@ jobs:
         with:
           node-version: 20
       - name: Install rpm tools (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y rpm
+        if: matrix.name == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm && rpmbuild --version
       - run: npm install
       - run: npm run ${{ matrix.script }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 没有代码签名证书时，不要去找证书（有证书后把这行删掉，并配置 CSC_LINK / CSC_KEY_PASSWORD）
           CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Build rpm (Linux)
+        if: matrix.name == 'linux'
+        # rpm 依赖构建机的 rpm 版本，失败也不该拖垮整个发布（AppImage / deb 才是 Linux 主流）
+        continue-on-error: true
+        run: npm run dist:linux:rpm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: List built artifacts
+        run: ls -lh dist || true
       - uses: actions/upload-artifact@v4
         with:
           name: PixPeel-${{ matrix.name }}

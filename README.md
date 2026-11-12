@@ -33,12 +33,14 @@
 
 | 系统 | 文件 | 说明 |
 | --- | --- | --- |
+| Windows（不知道自己是哪种？下这个） | `PixPeel-Setup-x.y.z-win.exe` | 一个安装包自动适配 64 位 / 32 位 / ARM，体积约 230 MB |
 | Windows 64 位（绝大多数电脑） | `PixPeel-Setup-x.y.z-win-x64.exe` | 安装向导：许可协议 → 选择路径 → 安装进度 → 可选创建桌面快捷方式 |
 | Windows 32 位 | `PixPeel-Setup-x.y.z-win-ia32.exe` | 老电脑 |
 | Windows on ARM | `PixPeel-Setup-x.y.z-win-arm64.exe` | |
 | macOS Apple 芯片 (M1/M2/M3…) | `PixPeel-x.y.z-mac-arm64.dmg` | |
 | macOS Intel | `PixPeel-x.y.z-mac-x64.dmg` | |
-| Linux | `…-linux-x64.AppImage` / `.deb` / `.rpm`（另有 arm64） | |
+| Linux 64 位 | `PixPeel-x.y.z-linux-x86_64.AppImage` / `…-linux-amd64.deb` / `…-linux-x86_64.rpm` | 免安装用 AppImage，Debian / Ubuntu 用 deb，Fedora / openSUSE 用 rpm |
+| Linux ARM64 | `PixPeel-x.y.z-linux-arm64.AppImage` / `…-linux-arm64.deb` / `…-linux-aarch64.rpm` | 树莓派等 |
 
 每个版本附带 `SHA256SUMS.txt`，可用来校验下载是否完整。
 
@@ -76,7 +78,7 @@
 
 ## 从源码运行 / 自己打包
 
-需要 [Node.js](https://nodejs.org) 18+。
+需要 [Node.js](https://nodejs.org) 20+。
 
 ```bash
 npm install
@@ -88,6 +90,9 @@ npm run dist:linux   # Linux 机器上：AppImage / deb / rpm（x64 / arm64）
 ```
 
 产物在 `dist/`。macOS 包只能在 macOS 上打，所以跨平台发布建议用 GitHub Actions。
+
+> rpm 包依赖构建机上 `rpmbuild` 的版本：新版 rpm（6.x）去掉了 `xzmt` 压缩，老的 electron-builder 打不出来。
+> 只想稳妥拿到 AppImage 和 deb，用 `npm run dist:linux:core`；单独补 rpm 用 `npm run dist:linux:rpm`。
 
 国内网络下载 Electron 慢时：
 
@@ -105,6 +110,7 @@ $env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"; $env:ELECTRON_BU
    git tag v1.0.1 && git push origin v1.0.1
    ```
 4. GitHub Actions（`.github/workflows/release.yml`）会在 Windows / macOS / Linux 上分别打包，并自动创建 Release、附上所有安装包与 `SHA256SUMS.txt`。
+5. Linux 的 rpm 包依赖构建机的 rpm 版本，所以 CI 里 Linux 固定跑在 `ubuntu-24.04`；以后换更新的 runner，记得先确认 rpm 还能打出来（AppImage 和 deb 不受影响）。
 
 改软件名只需改 `config.js` 与 `package.json`（`productName`、`appId`）；安装向导脚本和许可协议里也有名字，可全局替换一次。
 
@@ -124,6 +130,7 @@ tools/      图标生成脚本
 - 元素放在复杂花哨的背景上时，自动判断可能取到整块背景，请用魔棒 / 套索 / AI 点选。
 - Linux Wayland 下全局快捷键、屏幕截取和透明覆盖层可能不可用；托盘图标在 GNOME 上需要 AppIndicator 扩展。
 - 安装包未签名（见上）；自动更新目前是“检查到新版本后带你去下载页”，没有静默替换。
+- 卸载前先从托盘里退出 PixPeel，否则卸载程序会认为应用还在运行。
 
 ## 隐私
 
