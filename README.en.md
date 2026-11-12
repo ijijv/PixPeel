@@ -37,8 +37,8 @@ Get the file for your system from [Releases](https://github.com/ijijv/PixPeel/re
 | Windows 64-bit (most PCs) | `PixPeel-Setup-x.y.z-win-x64.exe` | Wizard: license → install path → progress → optional desktop shortcut |
 | Windows 32-bit | `PixPeel-Setup-x.y.z-win-ia32.exe` | Older PCs |
 | Windows on ARM | `PixPeel-Setup-x.y.z-win-arm64.exe` | |
-| macOS Apple Silicon | `PixPeel-x.y.z-mac-arm64.dmg` | |
-| macOS Intel | `PixPeel-x.y.z-mac-x64.dmg` | |
+| macOS Apple Silicon | `PixPeel-x.y.z-mac-arm64.dmg` | a `.zip` of the same build is there too |
+| macOS Intel | `PixPeel-x.y.z-mac-x64.dmg` | a `.zip` of the same build is there too |
 | Linux 64-bit | `PixPeel-x.y.z-linux-x86_64.AppImage` / `…-linux-amd64.deb` / `…-linux-x86_64.rpm` | AppImage needs no install, deb for Debian / Ubuntu, rpm for Fedora / openSUSE |
 | Linux ARM64 | `PixPeel-x.y.z-linux-arm64.AppImage` / `…-linux-arm64.deb` / `…-linux-aarch64.rpm` | Raspberry Pi and friends |
 

@@ -37,8 +37,8 @@
 | Windows 64 位（绝大多数电脑） | `PixPeel-Setup-x.y.z-win-x64.exe` | 安装向导：许可协议 → 选择路径 → 安装进度 → 可选创建桌面快捷方式 |
 | Windows 32 位 | `PixPeel-Setup-x.y.z-win-ia32.exe` | 老电脑 |
 | Windows on ARM | `PixPeel-Setup-x.y.z-win-arm64.exe` | |
-| macOS Apple 芯片 (M1/M2/M3…) | `PixPeel-x.y.z-mac-arm64.dmg` | |
-| macOS Intel | `PixPeel-x.y.z-mac-x64.dmg` | |
+| macOS Apple 芯片 (M1/M2/M3…) | `PixPeel-x.y.z-mac-arm64.dmg` | 同版本也有 `.zip` |
+| macOS Intel | `PixPeel-x.y.z-mac-x64.dmg` | 同版本也有 `.zip` |
 | Linux 64 位 | `PixPeel-x.y.z-linux-x86_64.AppImage` / `…-linux-amd64.deb` / `…-linux-x86_64.rpm` | 免安装用 AppImage，Debian / Ubuntu 用 deb，Fedora / openSUSE 用 rpm |
 | Linux ARM64 | `PixPeel-x.y.z-linux-arm64.AppImage` / `…-linux-arm64.deb` / `…-linux-aarch64.rpm` | 树莓派等 |
 
