@@ -27,6 +27,7 @@
     if (id === 'bDel' || id === 'bMerge') { const b = snap(); setTimeout(() => { if (!same(b)) push(b); }, 0); }
     else if (id === 'segRe') push(snap());
     else if (id === 'hUndo') undo(); else if (id === 'hRedo') redo();
+    else if (id === 'hExit') { SEG.src = null; SEG.layers = []; SEG.sel.clear(); H.u = []; H.r = []; renderEmpty(); }
     else if (id === 'zIn') zoomAt(1.25); else if (id === 'zOut') zoomAt(1 / 1.25);
     else if (id === 'zFit') { V.fit = true; applyView(); } else if (id === 'z100') zoomTo(1);
   }, true);
@@ -71,6 +72,7 @@
     if (bar) {
       const d = document.createElement('div'); d.className = 'tb';
       d.innerHTML = `<button class="btn sm" id="hUndo" title="${t('undo')} (Ctrl+Z)">↶</button><button class="btn sm" id="hRedo" title="${t('redoH')} (Ctrl+Shift+Z)">↷</button>
+        <button class="btn sm" id="hExit" title="${t('exitImageTip')}">↩</button>
         <span class="vsep"></span><button class="btn sm" id="zOut" title="${t('bdZoomOut')} (-)">−</button><b id="zLbl" class="zlbl">100%</b><button class="btn sm" id="zIn" title="${t('bdZoomIn')} (+)">+</button>
         <button class="btn sm" id="zFit" title="${t('bdFit')} (0)">${t('bdFit')}</button><button class="btn sm" id="z100" title="100% (1)">100%</button>`;
       bar.insertBefore(d, sp);
@@ -159,7 +161,44 @@ function lzResize(pre, sw, sh, dw, dh) {
   } }
   return out;
 }
-/** img: ImageData → 放大 f 倍后的 ImageData */
+/** 双线性缩放（给误差项用，比 Lanczos 便宜很多） */
+function blResize(src, sw, sh, dw, dh) {
+  const out = new Float32Array(dw * dh * 4), sx = sw / dw, sy = sh / dh;
+  for (let y = 0; y < dh; y++) {
+    const fy = (y + 0.5) * sy - 0.5, y0 = Math.max(0, Math.min(sh - 1, Math.floor(fy))), y1 = Math.min(sh - 1, y0 + 1), ty = fy - Math.floor(fy);
+    for (let x = 0; x < dw; x++) {
+      const fx = (x + 0.5) * sx - 0.5, x0 = Math.max(0, Math.min(sw - 1, Math.floor(fx))), x1 = Math.min(sw - 1, x0 + 1), tx = fx - Math.floor(fx);
+      const o = (y * dw + x) * 4;
+      for (let c = 0; c < 4; c++) {
+        const p00 = src[(y0 * sw + x0) * 4 + c], p10 = src[(y0 * sw + x1) * 4 + c], p01 = src[(y1 * sw + x0) * 4 + c], p11 = src[(y1 * sw + x1) * 4 + c];
+        out[o + c] = (p00 * (1 - tx) + p10 * tx) * (1 - ty) + (p01 * (1 - tx) + p11 * tx) * ty;
+      }
+    }
+  }
+  return out;
+}
+/** 盒式缩小（把大图投回原尺寸，用来找放大后跑偏的地方） */
+function boxDown(src, sw, sh, dw, dh) {
+  const out = new Float32Array(dw * dh * 4), fx = sw / dw, fy = sh / dh;
+  for (let y = 0; y < dh; y++) {
+    const y0 = Math.floor(y * fy), y1 = Math.max(y0 + 1, Math.min(sh, Math.ceil((y + 1) * fy)));
+    for (let x = 0; x < dw; x++) {
+      const x0 = Math.floor(x * fx), x1 = Math.max(x0 + 1, Math.min(sw, Math.ceil((x + 1) * fx)));
+      let r = 0, g = 0, b = 0, a = 0, n = 0;
+      for (let yy = y0; yy < y1; yy++) for (let xx = x0; xx < x1; xx++) { const p = (yy * sw + xx) * 4; r += src[p]; g += src[p + 1]; b += src[p + 2]; a += src[p + 3]; n++; }
+      const o = (y * dw + x) * 4; out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = a / n;
+    }
+  }
+  return out;
+}
+/**
+ * img: ImageData → 放大 f 倍后的 ImageData
+ * 想要更清楚，单纯“放大 + 锐化”是不够的。这里做了四件事：
+ *   ① Lanczos-3 放大（按透明度预乘，边缘不发黑）
+ *   ② 迭代反投影：把放大结果投回原图找误差，再把误差加回去，轮廓才不会糊成一团
+ *   ③ 去边：半透明边缘的颜色往不透明邻居上靠，消掉白边黑边（贴纸最容易露馅的地方）
+ *   ④ 边缘感知锐化：只在有细节的地方加力，平坦区不放大噪点
+ */
 function hdEnhance(img, f) {
   const sw = img.width, sh = img.height, dw = sw * f, dh = sh * f, s = img.data, n = sw * sh;
   const pre = new Float32Array(n * 4); let soft = 0, vis = 0;
@@ -168,14 +207,40 @@ function hdEnhance(img, f) {
     const k = a / 255; pre[i * 4] = s[i * 4] * k; pre[i * 4 + 1] = s[i * 4 + 1] * k; pre[i * 4 + 2] = s[i * 4 + 2] * k; pre[i * 4 + 3] = a;
   }
   const hard = vis > 0 && soft / vis < 0.1;                       // 边缘干脆的贴纸
-  const up = lzResize(pre, sw, sh, dw, dh), N = dw * dh;
+  let up = lzResize(pre, sw, sh, dw, dh);
+  /* ② 迭代反投影：投回去—算误差—加回去，跑 2 轮就够了 */
+  for (let k = 0; k < 2; k++) {
+    const low = boxDown(up, dw, dh, sw, sh);
+    const err = new Float32Array(pre.length);
+    for (let i = 0; i < pre.length; i++) err[i] = pre[i] - low[i];
+    const eUp = blResize(err, sw, sh, dw, dh);
+    for (let i = 0; i < up.length; i++) up[i] += eUp[i] * 0.9;
+  }
+  const N = dw * dh;
   const A = new Float32Array(N), C = new Float32Array(N * 3);     // 还原成“直通”颜色 + 透明度
   for (let i = 0; i < N; i++) {
     const a = Math.min(255, Math.max(0, up[i * 4 + 3])); A[i] = a;
     if (a > 0.5) { const k = 255 / a; for (let c = 0; c < 3; c++) C[i * 3 + c] = Math.min(255, Math.max(0, up[i * 4 + c] * k)); }
   }
-  /* 按透明度加权的 3×3 反锐化，只作用于颜色 */
-  const out = new ImageData(dw, dh), amt = 0.8, wk = [1, 2, 1];
+  /* ③ 去边：半透明边缘往不透明邻居的颜色上靠，去掉白边/黑边 */
+  if (hard) {
+    const R = 2;
+    for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) {
+      const i = y * dw + x, a = A[i]; if (a <= 10 || a >= 245) continue;
+      let r = 0, g = 0, b = 0, cnt = 0;
+      for (let dy = -R; dy <= R; dy++) { const yy = y + dy; if (yy < 0 || yy >= dh) continue;
+        for (let dx = -R; dx <= R; dx++) { const xx = x + dx; if (xx < 0 || xx >= dw) continue;
+          const j = yy * dw + xx; if (A[j] <= 240) continue;
+          r += C[j * 3]; g += C[j * 3 + 1]; b += C[j * 3 + 2]; cnt++; } }
+      if (!cnt) continue;
+      const w = 0.8;
+      C[i * 3] = C[i * 3] * (1 - w) + (r / cnt) * w;
+      C[i * 3 + 1] = C[i * 3 + 1] * (1 - w) + (g / cnt) * w;
+      C[i * 3 + 2] = C[i * 3 + 2] * (1 - w) + (b / cnt) * w;
+    }
+  }
+  /* ④ 边缘感知锐化：按透明度加权，只对超过阈值的细节加力，平坦区不放大噪点 */
+  const out = new ImageData(dw, dh), amt = 1.15, thr = 3, wk = [1, 2, 1];
   for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) {
     const i = y * dw + x, o = i * 4, a = A[i]; let na = a;
     if (hard) { let t = (a / 255 - 0.5) / 0.56 + 0.5; t = t < 0 ? 0 : t > 1 ? 1 : t; na = t * t * (3 - 2 * t) * 255; }
@@ -187,7 +252,7 @@ function hdEnhance(img, f) {
     } }
     for (let c = 0; c < 3; c++) {
       const v = C[i * 3 + c], bl = (c === 0 ? sr : c === 1 ? sg : sb) / (sa || 1), d = v - bl;
-      out.data[o + c] = Math.min(255, Math.max(0, Math.abs(d) < 1.5 ? v : v + amt * d));
+      out.data[o + c] = Math.min(255, Math.max(0, Math.abs(d) < thr ? v : v + amt * d));
     }
     out.data[o + 3] = Math.round(na);
   }
@@ -265,9 +330,16 @@ async function hdDecorate() {
     const box = document.createElement('div'); box.className = 'set';
     box.innerHTML = `<h3>${t('sTools')}</h3>
       <label class="item"><div><div class="t">${t('sHD')}</div><div class="d">${t('sHDD', { n: HD.LOW })}</div></div><input type="checkbox" class="sw" id="sHD" ${CFG.autoHD ? 'checked' : ''}></label>
+      <div class="item"><div><div class="t">${t('aiModel')}</div><div class="d">${t('aiModelDesc')}</div></div>
+        <select id="sAiModel"><option value="q8">${t('aiModelQ')} · ${t('aiModelQDesc')}</option><option value="fp32">${t('aiModelF')} · ${t('aiModelFDesc')}</option></select></div>
       <div class="item"><div><div class="t">${t('sKeys')}</div><div class="d">${t('sKeysD')}</div></div><button class="btn" id="sKeys">${t('viewBtn')}</button></div>`;
     sets[Math.min(1, sets.length - 1)].after(box);
     $('#sHD').onchange = async (e) => { const r = await api.setSettings({ autoHD: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.autoHD = e.target.checked; };
+    const sm = $('#sAiModel');
+    if (sm) {
+      sm.value = (CFG && CFG.aiModel) || 'q8';
+      sm.onchange = async (e) => { const v = e.target.value; aiSetMode(v); const r = await api.setSettings({ aiModel: v }); if (r && r.settings) CFG = r.settings; };
+    }
     $('#sKeys').onclick = showKeys;
   };
 }

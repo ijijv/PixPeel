@@ -1,7 +1,7 @@
 {
   "name": "pixpeel",
   "productName": "PixPeel",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Capture or import an image, auto-split it into elements and save them as transparent PNG stickers. 一键拆元素，存成透明底贴纸。",
   "main": "main.js",
   "author": "PixPeel contributors",
@@ -57,6 +57,7 @@
       "docs/**/*",
       "build/tray*.png",
       "build/icon.png",
+      "build/icon.ico",
       "build/notify.png",
       "!**/*.map"
     ],

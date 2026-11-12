@@ -4,9 +4,10 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const EXT = new Set(['.png', '.webp', '.jpg', '.jpeg', '.gif']);
+const EXT_SVG = new Set(['.svg']);
 
 /** 在 dir 下找出所有图片（最多两层：dir/文件 或 dir/批次/文件） */
-function listLib(dir) {
+function listKind(dir, exts) {
   const out = [];
   let top;
   try { top = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return out; }
@@ -19,16 +20,19 @@ function listLib(dir) {
   for (const d of top) {
     if (d.name.startsWith('.')) continue;
     const full = path.join(dir, d.name);
-    if (d.isFile() && EXT.has(path.extname(d.name).toLowerCase())) add(full, d.name, '');
+    if (d.isFile() && exts.has(path.extname(d.name).toLowerCase())) add(full, d.name, '');
     else if (d.isDirectory()) {
       let sub = [];
       try { sub = fs.readdirSync(full, { withFileTypes: true }); } catch (e) { /* ignore */ }
-      for (const f of sub) if (f.isFile() && EXT.has(path.extname(f.name).toLowerCase())) add(path.join(full, f.name), path.join(d.name, f.name), d.name);
+      for (const f of sub) if (f.isFile() && exts.has(path.extname(f.name).toLowerCase())) add(path.join(full, f.name), path.join(d.name, f.name), d.name);
     }
   }
   out.sort((a, b) => b.mtime - a.mtime);
   return out;
 }
+function listLib(dir) { return listKind(dir, EXT); }
+/** SVG 单独一份清单：素材库（给小剪动画读）里不能混进 SVG */
+function listSvg(dir) { return listKind(dir, EXT_SVG); }
 
 /** 把相对路径安全地解析到 dir 里面，防止 ../ 跳出去 */
 function resolveSafe(dir, rel) {
@@ -48,4 +52,4 @@ function uniquePath(dir, base, ext) {
   return p;
 }
 
-module.exports = { listLib, resolveSafe, safeName, uniquePath, EXT };
+module.exports = { listLib, listSvg, resolveSafe, safeName, uniquePath, EXT };

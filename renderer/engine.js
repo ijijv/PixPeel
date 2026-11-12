@@ -176,10 +176,25 @@ function segCut(L,pad){
   g.putImageData(id,0,0);return{cv:c,px:L.bx-p,py:L.by-p};
 }
 /* ── AI 点选（SlimSAM，放在 Worker 里，需联网下载模型） ── */
+/* 模型有两种：量化版（q8，默认）和浮点版。
+ * 量化：模型小（十几 MB）、下载快、省内存，日常够用；
+ * 浮点：精度略高，但体积和内存都要多一倍多，机器够好再换。 */
+let AI_MODE = 'q8';
+function aiSetMode(m) {
+  const n = (m === 'fp32') ? 'fp32' : 'q8';
+  if (n === AI_MODE) return;
+  AI_MODE = n;
+  if (SEG.ai) { try { SEG.ai.w.terminate(); URL.revokeObjectURL(SEG.ai.url); } catch (e) { } SEG.ai = null; }
+}
+const aiCacheKey = () => 'pp_ai_' + AI_MODE;
+const aiCached = () => { try { return localStorage.getItem(aiCacheKey()) === '1'; } catch (e) { return false; } };
+const aiMarkReady = () => { try { localStorage.setItem(aiCacheKey(), '1'); } catch (e) { } };
+
 function segAIWorker(){
   if(SEG.ai)return SEG.ai;
   const M=JSON.stringify({lib:t('aiLib'),libFail:t('aiLibFail'),pick:t('aiPick'),from:t('aiFrom'),modelFail:t('aiModelFail')});
-  const code=`const M=${M};let model,proc,emb,raw,RI;
+  const DT=JSON.stringify(AI_MODE === 'fp32' ? null : 'q8');
+  const code=`const M=${M};const DT=${DT};let model,proc,emb,raw,RI;
   const ID='Xenova/slimsam-77-uniform';
   const fast=urls=>{const ctl=urls.map(()=>new AbortController());const to=setTimeout(()=>ctl.forEach(c=>c.abort()),6000);return Promise.any(urls.map((u,i)=>fetch(u,{signal:ctl[i].signal,cache:'no-store'}).then(r=>{if(!r.ok)throw 0;ctl.forEach((c,j)=>j!==i&&c.abort());return u}))).then(u=>{clearTimeout(to);return u}).catch(()=>{clearTimeout(to);return null})};
   self.onmessage=async e=>{const m=e.data;try{
@@ -196,7 +211,7 @@ function segAIWorker(){
      let lastErr=null;
      for(const h of order){
        T.env.remoteHost=h+'/';
-       for(const dt of ['q8',null]){
+       for(const dt of (DT?[DT,null]:[null])){
          try{postMessage({t:'st',msg:M.from.replace('{h}',h.replace('https://',''))});
            const o={progress_callback:pg};if(dt)o.dtype=dt;
            model=await T.SamModel.from_pretrained(ID,o);proc=await T.AutoProcessor.from_pretrained(ID);lastErr=null;break}catch(x){lastErr=x;model=null}
@@ -228,7 +243,7 @@ function segAIcall(msg,want,transfer){
 async function segAIClick(x,y){
   const A=segAIWorker();
   try{
-    if(!A.ready){segBusy(t('aiLoad'));await segAIcall({t:'init'},'ready');A.ready=true}
+    if(!A.ready){segBusy(aiCached()?t('aiSee'):t('aiLoad'));await segAIcall({t:'init'},'ready');A.ready=true;aiMarkReady()}
     if(!A.embedded){segBusy(t('aiSee'));const bl=await new Promise(r=>SEG.src.cv.toBlob(r,'image/png'));await segAIcall({t:'embed',blob:bl},'embedded');A.embedded=true}
     segBusy(t('aiFind'));
     const d=await segAIcall({t:'click',pts:[[x,y]]},'mask');

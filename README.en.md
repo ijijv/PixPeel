@@ -18,12 +18,14 @@ Everything runs locally. No uploads, no account.
 - **Capture mode**: the screen dims, drag a region, elements are split automatically, pick and save as transparent PNGs.
 - **Click-to-extract mode**: the screen stays as it is; hover highlights an element, click saves it straight to the library. Click as many as you like.
 - **Import images**: button, drag & drop, or `Ctrl+V`.
-- **Refine tools**: Pick / Wand / Lasso / AI pick (optional, downloads a small model on first use and falls back to the hf-mirror.com mirror in China); export layered SVG.
+- **Refine tools**: Pick / Wand / Lasso / AI pick (optional, downloads a small model on first use and falls back to the hf-mirror.com mirror in China); export layered SVG. Two AI models to choose from: **quantized** (default — small, fast, light on memory) and **full precision** (slightly more accurate, roughly twice the download and memory). Switch in Settings.
 - **Board**: compose pictures from library elements or imported images; pick canvas size and transparent / solid background; move, scale, rotate, delete; export PNG / JPG or save back to the library.
 - **Undo / zoom / shortcuts**: Ctrl+Z / Ctrl+Shift+Z on both the Extract page and the Board, wheel zoom, Space-drag pan; every shortcut is listed in Settings.
-- **Enhance**: the library flags low-res items and upscales + sharpens them locally (classical resampling, not generative AI), saving a new `-HD` file and keeping the original.
-- **Library**: click to copy, reveal in folder, delete (to trash).
+- **Enhance**: the library flags low-res items and upscales + sharpens them locally (classical resampling, not generative AI), saving a new `-HD` file and keeping the original. On top of Lanczos and unsharp masking it now does iterative back-projection and de-fringing, so edges look tighter and halos are less visible.
+- **Library**: click to copy, reveal in folder, delete (to trash) — with a 3-second “Undo” prompt.
+- **SVG Library / SVG Canvas**: layered SVGs live in their own SVG library. In the SVG canvas you can show/hide, move, scale, rotate and fade each layer, and export any single layer as a transparent PNG back into the element library.
 - **Link with the “小剪动画” video editor**: saved elements show up in its sticker library.
+- **Drag images in**: drop an image from the desktop onto any page — the Extract page splits it, the Board takes it as a material (the first one becomes the background), the Library stores it, and the SVG Library treats it as an SVG.
 - Lives in the tray, optional launch at login, notification after saving (click it to open the library).
 - 简体中文 / English, light / dark / system theme.
 

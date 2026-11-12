@@ -9,6 +9,7 @@
       elem: '元素', bg: '背景', image: '图片',
       /* 导航 */
       navEdit: '拆元素', navLib: '素材库', navSet: '设置', btnImp: '导入图片', btnCap: '框选屏幕',
+      navSvgLib: 'SVG 库', navSvgCanvas: 'SVG 画布',
       /* 空状态 */
       emTitle: '按 {k} 框选屏幕',
       emP1: '松开鼠标就自动拆开元素。点选想要的，按 Enter 保存，窗口会自己收进托盘。',
@@ -48,6 +49,31 @@
       noGroup: '（未分组）', nItems: '{n} 个', clickCopy: '点击复制到剪贴板', reveal: '定位', revealTip: '在文件夹中显示', del: '删除', delTip: '放进回收站',
       libEmptyT: '还没有元素', libEmptyD: '按快捷键框选一个画面，挑几个元素保存，就会出现在这里。',
       trashed: '已放进回收站', delFail: '删除失败', copiedPaste: '已复制，直接去粘贴就行',
+      /* 撤回轻提示 + 外部拖图 */
+      delUndo: '删掉了 {n} 个元素', delUndoFile: '要放进回收站', delUndoLayer: '删掉了一层',
+      undone: '已撤回', toBoard: '画板', toBoardTip: '复制一份到画板；素材本身留着，可以反复用',
+      addedToBoard: '已复制到画板', savedLibDrop: '已存进素材库',
+      dropToSplit: '松手就导入并拆元素', dropToLib: '松手就存进素材库',
+      dropToSvgLib: '松手就存进 SVG 库', dropToSvgCanvas: '松手就在 SVG 画布里打开',
+      exitImage: '退出这张图片', exitImageTip: '回到空白页',
+      grpSvg: 'SVG {s}',
+      /* SVG 库 / SVG 画布 */
+      svgLibTitle: 'SVG 库', svgLibLead: '{n} 个 SVG 文件。SVG 和素材库分开存放，互不干扰。',
+      svgLibEmptyT: '还没有 SVG', svgLibEmptyD: '在拆元素页导一个“分层 SVG”，或者把 .svg 文件直接拖进来。',
+      svgImpBtn: '导入 SVG', svgOpen: '打开', svgOpenTip: '在 SVG 画布里打开',
+      svgImported: '已存进 SVG 库', svgBad: '这个 SVG 打不开',
+      svgLayers: '图层', svgNoLayer: '这个 SVG 里没有能单独编辑的图层',
+      svgPickHint: '选中左边一个图层，就能改它的位置、大小、角度和透明度',
+      svgPosX: 'X', svgPosY: 'Y', svgScale: '缩放', svgRotate: '旋转', svgOpacity: '不透明度',
+      svgFront: '上移', svgBack: '下移', svgDel: '删掉这一层', svgRename: '图层名字',
+      svgFile: '文件', svgSaveLib: '存进 SVG 库', svgExp: '导出 SVG', svgPng: '导出 PNG',
+      svgLayersExp: '各层导成 PNG', svgExpDone: '已导出 SVG', svgSavedLib: '已存进 SVG 库',
+      svgPngDone: '已导出 PNG', svgLayersDone: '已把 {n} 层导成 PNG 存进素材库', svgExportFail: '导出失败了',
+      /* AI 模型：量化 / 浮点 */
+      aiModel: 'AI 模型', aiModelQ: '量化版（推荐）', aiModelF: '浮点版（更精确）',
+      aiModelDesc: '量化版：模型小、下载快、省内存，日常用这个就够。浮点版：精度略高，下载体积和内存占用都要多一倍多，机器够好可以换。',
+      aiModelQDesc: '约 15–40 MB，跑得快，8 GB 内存的机器也够用',
+      aiModelFDesc: '约 40–100 MB，更吃内存，16 GB 内存更稳',
       /* 设置 */
       setTitle: '设置', setLead: '改动立即生效。',
       sGeneral: '通用', sLang: '界面语言', sLangD: '选“跟随系统”会按操作系统语言自动切换。', langAuto: '跟随系统',
@@ -87,7 +113,7 @@
       lvHint: '点要提取的元素，自动存进素材库', lvKeys: '滚轮 调范围 · <kbd>Esc</kbd> / 右键 结束', lvCnt: '已提取 {n} 个',
       lvWand: '背景比较复杂，按颜色相近的一片选出来了', lvClick: '点一下提取这个元素', lvNone: '这里没识别到元素。滚轮调大范围，或改用框选模式',
       lvRange: '合并范围 {m}', lvNoneS: '（没识别到）', lvSaved: '已存进素材库 ✓', lvSaveFail: '保存失败，检查保存文件夹的写入权限', lvErr: '提取出错：{e}',
-      undo: '撤回', redoH: '重做', zoomMode: '缩放方式', zoomSel: '缩放到选中', nothingUndo: '没有可撤回的操作', nothingRedo: '没有可重做的操作', keysTitle: '键盘快捷键', hdBusy: '正在高清修复 {i}/{n}…', hdDone: '已修复 {n} 张。原图还在，新图名字带 -HD', hdFail: '修复失败了（可能读取出错，或图片已经够大）', hdTag: '低清', hdTip: '放大并锐化，另存为带 -HD 的新图，原图保留', hdOne: '高清修复', hdAll: '一键修复 {n} 张低清素材', sTools: '素材处理与快捷键', sHD: '保存时自动修复小图', sHDD: '保存元素时，长边小于 {n}px 的会自动放大并锐化（纯本机计算，不联网）', sKeys: '键盘快捷键', sKeysD: '查看拆元素页和画板里的全部快捷键', viewBtn: '查看',
+      undo: '撤回', redoH: '重做', zoomMode: '缩放方式', zoomSel: '缩放到选中', nothingUndo: '没有可撤回的操作', nothingRedo: '没有可重做的操作', keysTitle: '键盘快捷键', hdBusy: '正在高清修复 {i}/{n}…', hdDone: '已修复 {n} 张。原图还在，新图名字带 -HD', hdFail: '修复失败了（可能读取出错，或图片已经够大）', hdTag: '低清', hdTip: '放大、去边并锐化，另存为带 -HD 的新图，原图保留', hdOne: '高清修复', hdAll: '一键修复 {n} 张低清素材', sTools: '素材处理与快捷键', sHD: '保存时自动修复小图', sHDD: '保存元素时，长边小于 {n}px 的会自动放大并锐化（纯本机计算，不联网）', sKeys: '键盘快捷键', sKeysD: '查看拆元素页和画板里的全部快捷键', viewBtn: '查看',
       eNeedSel: '先点选（或勾选）一个元素，再用“加到当前”', eNoHit: '圈的位置没有碰到任何元素',
       /* 画板 / Board */
       navBoard: '画板', bdMat: '素材', bdRefresh: '刷新', bdMatTip: '点一下添加，或直接拖到画布上', bdMatEmpty: '素材库还是空的。先去拆几个元素，或在设置里检查保存位置。', bdCanvas: '画布大小', bdCustom: '自定义', bdBg: '背景', bdTransparent: '透明', bdPickColor: '自定义颜色', bdImport: '导入图片', bdToLib: '存入素材库', bdExport: '导出', bdAngle: '角度', bdSize: '大小', bdRot90: '旋转 90°', bdUp: '上移一层', bdDown: '下移一层', bdDelete: '删除', bdFit: '适应', bdZoomIn: '放大', bdZoomOut: '缩小', bdEmptyHint: '点左边的素材，或把图片拖进来 / 导入图片，就可以开始拼了', bdPan: '滚轮缩放 · 空白处拖动或按住空格拖动可平移', bdSizeBad: '画布宽高要在 {min}–{max} 之间，且不能太大', bdBaseSet: '画布已设为 {w}×{h}（和导入的图一样大）', bdExported: '已导出 ✓', bdExportFail: '导出失败了，换个小一点的画布再试', bdFile: '画板', bdGroup: '画板作品', bdSavedLib: '已存进素材库 ✓'
@@ -96,6 +122,7 @@
       langName: 'English',
       elem: 'Element', bg: 'Background', image: 'Image',
       navEdit: 'Extract', navLib: 'Library', navSet: 'Settings', btnImp: 'Import', btnCap: 'Capture',
+      navSvgLib: 'SVG Library', navSvgCanvas: 'SVG Canvas',
       emTitle: 'Press {k} to capture the screen',
       emP1: 'Release the mouse and elements are split automatically. Click the ones you want, press Enter to save — the window tucks itself into the tray.',
       emTip: 'Want it faster? Press {k}: the screen stays as it is — just click an element and it is saved to your library.',
@@ -131,6 +158,31 @@
       noGroup: '(ungrouped)', nItems: '{n}', clickCopy: 'Click to copy to clipboard', reveal: 'Reveal', revealTip: 'Show in folder', del: 'Delete', delTip: 'Move to trash',
       libEmptyT: 'Nothing here yet', libEmptyD: 'Capture the screen with the hotkey, pick some elements and save — they will appear here.',
       trashed: 'Moved to trash', delFail: 'Delete failed', copiedPaste: 'Copied — just paste it',
+      /* Undo toast + drag & drop */
+      delUndo: 'Deleted {n} element(s)', delUndoFile: 'Moving to trash', delUndoLayer: 'Deleted a layer',
+      undone: 'Undone', toBoard: 'Board', toBoardTip: 'Copy it to the board — the original stays in the library, use it as often as you like',
+      addedToBoard: 'Copied to the board', savedLibDrop: 'Saved to the library',
+      dropToSplit: 'Drop to import and split', dropToLib: 'Drop to save into the library',
+      dropToSvgLib: 'Drop to save into the SVG library', dropToSvgCanvas: 'Drop to open in the SVG canvas',
+      exitImage: 'Leave this image', exitImageTip: 'Back to the empty page',
+      grpSvg: 'SVG {s}',
+      /* SVG library / SVG canvas */
+      svgLibTitle: 'SVG Library', svgLibLead: '{n} SVG file(s). SVGs are stored separately from the element library.',
+      svgLibEmptyT: 'No SVGs yet', svgLibEmptyD: 'Export a “layered SVG” from the Extract page, or drop a .svg file in here.',
+      svgImpBtn: 'Import SVG', svgOpen: 'Open', svgOpenTip: 'Open in the SVG canvas',
+      svgImported: 'Saved to the SVG library', svgBad: 'Cannot open this SVG',
+      svgLayers: 'Layers', svgNoLayer: 'This SVG has no editable layers',
+      svgPickHint: 'Pick a layer on the left to change its position, size, angle and opacity',
+      svgPosX: 'X', svgPosY: 'Y', svgScale: 'Scale', svgRotate: 'Rotate', svgOpacity: 'Opacity',
+      svgFront: 'Forward', svgBack: 'Backward', svgDel: 'Delete layer', svgRename: 'Layer name',
+      svgFile: 'File', svgSaveLib: 'Save to SVG library', svgExp: 'Export SVG', svgPng: 'Export PNG',
+      svgLayersExp: 'Layers → PNG', svgExpDone: 'SVG exported', svgSavedLib: 'Saved to the SVG library',
+      svgPngDone: 'PNG exported', svgLayersDone: 'Exported {n} layer(s) as PNG into the library', svgExportFail: 'Export failed',
+      /* AI model: quantized / float */
+      aiModel: 'AI model', aiModelQ: 'Quantized (recommended)', aiModelF: 'Full precision',
+      aiModelDesc: 'Quantized: small, fast to download, light on memory — fine for everyday use. Full precision: slightly more accurate, but needs roughly twice the download and memory; use it if your machine can take it.',
+      aiModelQDesc: 'about 15–40 MB, fast, runs on 8 GB of RAM',
+      aiModelFDesc: 'about 40–100 MB, heavier — 16 GB of RAM is safer',
       setTitle: 'Settings', setLead: 'Changes apply immediately.',
       sGeneral: 'General', sLang: 'Language', sLangD: '“System” follows your operating system language.', langAuto: 'System',
       sTheme: 'Theme', sThemeD: 'Light, dark, or follow the system.', themeAuto: 'System', themeDark: 'Dark', themeLight: 'Light',
@@ -167,7 +219,7 @@
       lvHint: 'Click an element to extract it into your library', lvKeys: 'Scroll: range · <kbd>Esc</kbd> / right-click: finish', lvCnt: '{n} extracted',
       lvWand: 'Busy background — selected a patch of similar color', lvClick: 'Click to extract this element', lvNone: 'No element detected here. Scroll to widen the range, or use capture mode',
       lvRange: 'Merge range {m}', lvNoneS: ' (nothing detected)', lvSaved: 'Saved to library ✓', lvSaveFail: 'Save failed — check the folder permissions', lvErr: 'Extract error: {e}',
-      undo: 'Undo', redoH: 'Redo', zoomMode: 'Zoom…', zoomSel: 'Zoom to selection', nothingUndo: 'Nothing to undo', nothingRedo: 'Nothing to redo', keysTitle: 'Keyboard shortcuts', hdBusy: 'Enhancing {i}/{n}…', hdDone: 'Enhanced {n}. Originals kept; new files end with -HD', hdFail: 'Enhancement failed (read error, or the image is already large)', hdTag: 'Low-res', hdTip: 'Upscale + sharpen, saved as a new “-HD” file; the original is kept', hdOne: 'Enhance', hdAll: 'Enhance {n} low-res items', sTools: 'Tools & shortcuts', sHD: 'Auto-enhance small images on save', sHDD: 'When saving elements, those with the longer side under {n}px are upscaled and sharpened (local only, no network)', sKeys: 'Keyboard shortcuts', sKeysD: 'See every shortcut for the Extract page and the Board', viewBtn: 'View',
+      undo: 'Undo', redoH: 'Redo', zoomMode: 'Zoom…', zoomSel: 'Zoom to selection', nothingUndo: 'Nothing to undo', nothingRedo: 'Nothing to redo', keysTitle: 'Keyboard shortcuts', hdBusy: 'Enhancing {i}/{n}…', hdDone: 'Enhanced {n}. Originals kept; new files end with -HD', hdFail: 'Enhancement failed (read error, or the image is already large)', hdTag: 'Low-res', hdTip: 'Upscale, de-fringe and sharpen, saved as a new “-HD” file; the original is kept', hdOne: 'Enhance', hdAll: 'Enhance {n} low-res items', sTools: 'Tools & shortcuts', sHD: 'Auto-enhance small images on save', sHDD: 'When saving elements, those with the longer side under {n}px are upscaled and sharpened (local only, no network)', sKeys: 'Keyboard shortcuts', sKeysD: 'See every shortcut for the Extract page and the Board', viewBtn: 'View',
       eNeedSel: 'Select (or tick) an element first, then use “Add to current”', eNoHit: 'The loop did not touch any element',
       /* 画板 / Board */
       navBoard: 'Board', bdMat: 'Materials', bdRefresh: 'Refresh', bdMatTip: 'Click to add, or drag onto the canvas', bdMatEmpty: 'Your library is empty. Extract some elements first, or check the save folder in Settings.', bdCanvas: 'Canvas', bdCustom: 'Custom', bdBg: 'Background', bdTransparent: 'Transparent', bdPickColor: 'Custom color', bdImport: 'Import image', bdToLib: 'Save to library', bdExport: 'Export', bdAngle: 'Angle', bdSize: 'Size', bdRot90: 'Rotate 90°', bdUp: 'Bring forward', bdDown: 'Send backward', bdDelete: 'Delete', bdFit: 'Fit', bdZoomIn: 'Zoom in', bdZoomOut: 'Zoom out', bdEmptyHint: 'Click a material on the left, or drag in / import an image to start', bdPan: 'Scroll to zoom · drag empty space or hold Space to pan', bdSizeBad: 'Width and height must be {min}–{max} px, and not too large', bdBaseSet: 'Canvas set to {w}×{h} (same as the imported image)', bdExported: 'Exported ✓', bdExportFail: 'Export failed — try a smaller canvas', bdFile: 'Board', bdGroup: 'Board works', bdSavedLib: 'Saved to library ✓'

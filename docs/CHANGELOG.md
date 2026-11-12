@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.2
+
+- New “SVG Library” and “SVG Canvas” sections: layered SVGs are stored on their own; in the SVG canvas you can show/hide, move, scale, rotate, fade and delete each layer, and export any single layer as a transparent PNG back into the element library. See docs/LINK-PROTOCOL.md for the interface contract.
+- Deletes are now undoable for 3 seconds: the library, the Extract page and the Board all show a toast with a shrinking progress bar; the delete only happens when the bar runs out.
+- The element list is now a responsive card grid — thumbnails grow and reflow with the sidebar width instead of squeezing into thin rows.
+- New ↩ button on the Extract page to leave the current image and go back to the empty page.
+- Drag an image from the desktop onto any page: the Extract page splits it, the Board takes it as a material, the Library stores it, the SVG Library treats it as an SVG. A hint at the top tells you what the current page will do with it.
+- HD enhance upgraded: on top of Lanczos + unsharp masking it now does iterative back-projection (tighter outlines) and de-fringing (fewer white/black halos).
+- The AI model is now your choice: quantized (default, ~15–40 MB, fast, light) or full precision (~40–100 MB, slightly more accurate, heavier), switchable in Settings. Once the model is downloaded it goes straight to “AI is looking at the image”.
+- Library items gained a “Board” button that copies them onto the board while the original stays in the library for repeated use.
+- Fix: white icon for the taskbar / notifications on Windows (the window now uses a multi-size ICO and the Start Menu shortcut is recreated on every install).
+- Fix: after installing a new build, launch-at-login still pointed at the old path so nothing started on boot; it now re-aligns to the current executable on startup.
+
 ## 1.0.1
 
 - The companion web animation editor “小剪动画” now ships with every release (`xiaoji-animation.html`, single file, double-click to open).

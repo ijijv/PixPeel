@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('xapi', {
   revealLib: (rel) => inv('lib:reveal', rel),
   copyLib: (rel) => inv('lib:copy', rel),
   readLib: (rel) => inv('lib:read', rel),
+  listSvg: () => inv('lib:listSvg'),
+  saveSvg: (o) => inv('lib:saveSvg', o),
   saveHD: (o) => inv('lib:hd', o),
   copyImage: (bytes) => inv('img:copy', bytes),
   saveElements: (o) => inv('save:elements', o),

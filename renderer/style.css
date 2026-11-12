@@ -221,3 +221,65 @@ select:hover{border-color:var(--mint)}
 .keys td{padding:5px 0;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top}
 .keys td:first-child{width:46%;padding-right:14px;white-space:normal}
 .keys td:last-child{color:var(--dim)}
+
+/* ───────── 撤回轻提示（3 秒 + 递减进度条） ───────── */
+#undoToast{position:fixed;left:50%;bottom:70px;transform:translate(-50%,10px);background:var(--panel);color:var(--fg);
+  border:1px solid var(--line2);border-radius:12px;padding:10px 12px 12px;display:flex;align-items:center;gap:12px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:10;box-shadow:0 12px 34px rgba(0,0,0,.45);max-width:min(520px,90vw);overflow:hidden}
+#undoToast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#undoToast .utx{font-size:13px}
+#undoToast .uact{flex:none;padding:4px 12px;background:var(--mint);border-color:var(--mint);color:var(--mint-ink);font-weight:600}
+#undoToast .uact:hover{filter:brightness(1.08)}
+#undoToast .ubar{position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--mint);opacity:.75}
+
+/* ───────── 外部拖图的提示条 ───────── */
+#dropHint{position:fixed;left:50%;top:26px;transform:translate(-50%,-8px);z-index:12;pointer-events:none;opacity:0;
+  transition:opacity .16s,transform .16s;background:var(--mint);color:var(--mint-ink);font-weight:600;font-size:13px;
+  padding:9px 18px;border-radius:99px;box-shadow:0 10px 28px rgba(0,0,0,.4)}
+#dropHint.on{opacity:1;transform:translate(-50%,0)}
+
+/* ───────── 元素列表：卡片网格，随窗口自适应 ───────── */
+#segList{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;align-content:start}
+.segCard{border:1px solid var(--line);border-radius:10px;background:var(--raise);padding:6px;display:grid;gap:4px;cursor:pointer;
+  transition:border-color .15s,background .15s;min-width:0}
+.segCard:hover{border-color:var(--line2)}
+.segCard.sel{border-color:var(--mint);background:var(--mint-soft)}
+.segCard .scBox{position:relative;aspect-ratio:1;border-radius:7px;overflow:hidden;display:grid;place-items:center;
+  background:repeating-conic-gradient(var(--chk3) 0 25%,var(--chk4) 0 50%) 0 0/10px 10px}
+.segCard .scBox canvas{max-width:100%;max-height:100%;display:block}
+.segCard .scBox input{position:absolute;left:4px;top:4px;accent-color:var(--mint)}
+.segCard .segName{width:100%;min-width:0;border:1px solid transparent;background:transparent;border-radius:6px;padding:2px 4px;font-size:11.5px;color:var(--fg)}
+.segCard .segName:hover{border-color:var(--line)}
+.segCard .segName:focus{outline:none;border-color:var(--mint);background:var(--panel)}
+.segCard .dim{font-size:10.5px;color:var(--faint);padding-left:4px}
+
+/* 素材库：等待删除确认的格子 */
+.cell.pending{opacity:.42;filter:grayscale(.6)}
+
+/* ───────── SVG 库 / SVG 画布 ───────── */
+.sv{display:flex;height:100%;min-height:0}
+.sv-side{width:268px;flex:none;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
+.sv-h{display:flex;align-items:center;gap:6px;padding:12px 14px 6px}
+.sv-list{overflow:auto;padding:0 10px 8px;flex:1;min-height:0}
+.svRow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);
+  border-radius:8px;cursor:pointer;margin-bottom:4px;background:var(--raise);font-size:12.5px}
+.svRow:hover{border-color:var(--line2)}
+.svRow.sel{border-color:var(--mint);background:var(--mint-soft)}
+.svRow input{accent-color:var(--mint)}
+.svNm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-prop{border-top:1px solid var(--line);padding:10px 12px 14px;display:grid;gap:8px}
+.sv-p{display:grid;gap:6px}
+.sv-p .fld{display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:8px;font-size:11.5px;color:var(--dim)}
+.sv-p .fld input[type=range]{width:100%}
+.sv-p .fld b{font-weight:500;color:var(--fg);min-width:38px;text-align:right}
+.sv-p .fld input[type=number]{width:100%}
+.sv-main{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1}
+.sv-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.sv-g{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+.sv-g b{color:var(--fg);font-weight:600}
+.sv-stage{position:relative;flex:1;min-height:0;overflow:hidden;background:var(--stage);
+  background-image:linear-gradient(45deg,var(--chk1) 25%,transparent 25%),linear-gradient(-45deg,var(--chk1) 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,var(--chk1) 75%),linear-gradient(-45deg,transparent 75%,var(--chk1) 75%);
+  background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0}
+.svSvg{position:absolute;box-shadow:0 8px 40px rgba(0,0,0,.45)}
+.svSvg g[data-sg]{cursor:grab}

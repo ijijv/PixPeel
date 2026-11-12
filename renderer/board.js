@@ -113,7 +113,10 @@ const Board = (() => {
   }
   const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp' };
   async function imgFromBlob(blob) {
-    const url = URL.createObjectURL(blob); const im = new Image(); im.src = url; await im.decode(); return im;
+    /* 用 onload 而不是 decode()：decode() 在某些情况下会一直挂着不返回，onload 更稳 */
+    const url = URL.createObjectURL(blob); const im = new Image();
+    await new Promise((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error('img')); im.src = url; });
+    return im;
   }
   async function addMat(rel, at) {
     try {
@@ -146,7 +149,14 @@ const Board = (() => {
     const l = { id: B.seq++, name, img: im, w, h, x: cx, y: cy, s, r: 0 };
     B.layers.push(l); B.sel = l.id; draw(); tools();
   }
-  function del() { const l = sel(); if (!l) return; act(() => { B.layers = B.layers.filter(x => x !== l); B.sel = null; draw(); tools(); }); }
+  function del() {
+    const l = sel(); if (!l) return;
+    const idx = B.layers.indexOf(l);
+    act(() => { B.layers = B.layers.filter(x => x !== l); B.sel = null; draw(); tools(); });
+    undoToast(t('delUndoLayer'), {
+      undo: () => { B.layers.splice(Math.min(idx, B.layers.length), 0, l); B.sel = l.id; draw(); tools(); }
+    });
+  }
   function dup() {
     const l = sel(); if (!l) return;
     act(() => { const c = Object.assign({}, l, { id: B.seq++, x: l.x + 24, y: l.y + 24, name: l.name }); B.layers.splice(B.layers.indexOf(l) + 1, 0, c); B.sel = c.id; draw(); tools(); });
@@ -160,9 +170,10 @@ const Board = (() => {
     ['bdAng', 'bdScl', 'bdR90', 'bdUp', 'bdDn', 'bdDel'].forEach(id => { const e = $('#' + id); if (e) e.disabled = !on; });
     if (l) {
       let a = Math.round(l.r * 180 / Math.PI) % 360; if (a > 180) a -= 360; if (a < -180) a += 360;
-      if (document.activeElement !== $('#bdAng')) $('#bdAng').value = a;
-      if (document.activeElement !== $('#bdScl')) $('#bdScl').value = Math.round(l.s * 100);
-    } else { $('#bdAng').value = ''; $('#bdScl').value = ''; }
+      const an = $('#bdAng'), sc = $('#bdScl');
+      if (an && document.activeElement !== an) an.value = a;
+      if (sc && document.activeElement !== sc) sc.value = Math.round(l.s * 100);
+    } else { const an = $('#bdAng'), sc = $('#bdScl'); if (an) an.value = ''; if (sc) sc.value = ''; }
     const em = $('#bdEmpty'); if (em) em.style.display = B.layers.length ? 'none' : '';
   }
 
@@ -354,5 +365,5 @@ const Board = (() => {
     requestAnimationFrame(() => { if (!B.fitted) fit(); else draw(); tools(); });
   }
   function select(id) { B.sel = id; draw(); tools(); }
-  return { enter, state: B, draw, addLayer, setSize, fit, select, undo, redo, dup, zoomSel };
+  return { enter, state: B, draw, addLayer, setSize, fit, select, undo, redo, dup, zoomSel, imgFromBlob, addMat };
 })();

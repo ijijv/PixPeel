@@ -14,8 +14,14 @@ const APP = require('./config');
 /* 必须在 ready 之前设置：Windows 通知的名称/图标、userData 目录都靠它 */
 app.setName(APP.name);
 if (process.platform === 'win32') app.setAppUserModelId(APP.appId);
-const { listLib, resolveSafe, safeName, uniquePath } = require('./lib');
+const { listLib, listSvg, resolveSafe, safeName, uniquePath } = require('./lib');
 const server = require('./server');
+
+/* Windows 的窗口图标必须用多尺寸 ICO。
+ * 用 1024×1024 的 PNG 的话，Electron 转不出合适的小图标，
+ * 任务栏和窗口标题栏就会变成系统自带的“空白文档”图标。 */
+const isWin = process.platform === 'win32';
+const appIcon = () => path.join(__dirname, 'build', isWin ? 'icon.ico' : 'icon.png');
 
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 
@@ -25,6 +31,7 @@ const DEFAULTS = () => ({
   hotkey2: 'CommandOrControl+Alt+X',
   autoHide: true,
   autoHD: false,
+  aiModel: 'q8',
   notify: true,
   openAtLogin: false,
   linkEnabled: true,
@@ -77,7 +84,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1220, height: 820, minWidth: 900, minHeight: 600, show: false,
     title: APP.name, backgroundColor: bgColor(), autoHideMenuBar: true,
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: appIcon(),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: false }
   });
   win.setMenuBarVisibility(false);
@@ -364,6 +371,19 @@ function ipc() {
     clipboard.writeImage(nativeImage.createFromPath(p)); return true;
   });
   ipcMain.handle('lib:read', (e, rel) => { const p = resolveSafe(settings.saveDir, rel); if (!p) return null; try { return fs.readFileSync(p); } catch (_) { return null; } });
+  /* SVG 库：和素材库分开，SVG 不进「小剪动画」的素材列表 */
+  ipcMain.handle('lib:listSvg', () => listSvg(settings.saveDir));
+  ipcMain.handle('lib:saveSvg', (e, o) => {
+    if (!o || !o.data) return { ok: false };
+    try {
+      ensureDir(settings.saveDir);
+      const dir = path.join(settings.saveDir, safeName(o.group || T('grpSvg', { s: stamp() })));
+      ensureDir(dir);
+      const out = uniquePath(dir, safeName(o.name || 'svg'), '.svg');
+      fs.writeFileSync(out, Buffer.from(o.data));
+      return { ok: true, rel: path.relative(settings.saveDir, out).split(path.sep).join('/') };
+    } catch (err) { console.error(err); return { ok: false }; }
+  });
   ipcMain.handle('lib:hd', (e, o) => {
     const p = resolveSafe(settings.saveDir, o && o.rel); if (!p || !o.data) return { ok: false };
     try {

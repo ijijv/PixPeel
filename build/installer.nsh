@@ -10,9 +10,17 @@
 !macroend
 
 !macro customInstall
+  ; 开始菜单快捷方式要保证存在。
+  ; Windows 是靠这个快捷方式（AUMID = com.pixpeel.app）把系统通知的图标关联到本程序的，
+  ; 缺了它，右下角通知就会显示成系统的“空白文档”图标。
+  ; electron-builder 只在全新安装时建，更新安装不会补建，所以这里自己兜住。
+  IfFileExists "$SMPROGRAMS\${SHORTCUT_NAME}.lnk" 0 +3
+    CreateShortCut "$SMPROGRAMS\${SHORTCUT_NAME}.lnk" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+    WinShell::SetLnkAUMI "$SMPROGRAMS\${SHORTCUT_NAME}.lnk" "${APP_ID}"
+
   ; 静默安装（如覆盖更新）时不弹完成页，所以如果之前已有桌面快捷方式，顺手刷新一下
   IfFileExists "$DESKTOP\PixPeel.lnk" 0 +2
-    CreateShortCut "$DESKTOP\PixPeel.lnk" "$INSTDIR\PixPeel.exe" "" "$INSTDIR\PixPeel.exe" 0
+    CreateShortCut "$DESKTOP\PixPeel.lnk" "$INSTDIR\${APP_EXECUTABLE_FILENAME}" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME}" 0
 !macroend
 
 !macro customUnInstall
@@ -22,6 +30,6 @@
 ; 只在安装器里定义（卸载器那一遍不会用到，否则会触发 warning 6010）
 !ifndef BUILD_UNINSTALLER
 Function PixPeelDesktopShortcut
-  CreateShortCut "$DESKTOP\PixPeel.lnk" "$INSTDIR\PixPeel.exe" "" "$INSTDIR\PixPeel.exe" 0
+  CreateShortCut "$DESKTOP\PixPeel.lnk" "$INSTDIR\${APP_EXECUTABLE_FILENAME}" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME}" 0
 FunctionEnd
 !endif

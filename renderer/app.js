@@ -4,6 +4,38 @@ const api = window.xapi;
 let CFG = null;
 let tt;
 function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => e.classList.remove('show'), 4200); }
+
+/* ───────── 撤回轻提示：3 秒 + 递减进度条 ─────────
+ * 用法：undoToast('已删除 3 个元素', { undo: () => {...}, expire: () => {...} })
+ * expire 在 3 秒内没人点撤回时触发（用来真正执行删除）；undo 则是反悔。 */
+let undoJob = null;
+function undoToast(msg, opt) {
+  opt = opt || {};
+  let el = $('#undoToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'undoToast';
+    el.innerHTML = '<span class="utx"></span><button class="btn sm uact"></button><i class="ubar"></i>';
+    document.body.appendChild(el);
+    el.querySelector('.uact').onclick = () => {
+      const j = undoJob; if (!j) return;
+      undoJob = null; clearTimeout(j.timer); el.classList.remove('on');
+      if (j.opt.undo) j.opt.undo();
+    };
+  }
+  const ms = opt.ms || 3000;
+  el.querySelector('.utx').textContent = msg;
+  el.querySelector('.uact').textContent = t('undo');
+  el.classList.add('on');
+  const bar = el.querySelector('.ubar');
+  bar.style.transition = 'none'; bar.style.width = '100%';
+  void bar.offsetWidth;                       // 强制重排，让进度条从头开始
+  bar.style.transition = 'width ' + ms + 'ms linear'; bar.style.width = '0%';
+  if (undoJob) { clearTimeout(undoJob.timer); if (undoJob.opt.expire) undoJob.opt.expire(); }
+  undoJob = { opt, timer: setTimeout(() => { const j = undoJob; undoJob = null; el.classList.remove('on'); if (j && j.opt.expire) j.opt.expire(); }, ms) };
+}
+/** 撤回轻提示的宿主组件是否正在显示（避免多个提示互相打断） */
+const undoBusy = () => !!undoJob;
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const toBlob = (cv) => new Promise(r => cv.toBlob(r, 'image/png'));
 const toBytes = async (cv) => new Uint8Array(await (await toBlob(cv)).arrayBuffer());
@@ -21,7 +53,7 @@ function applyTheme() {
   document.documentElement.dataset.theme = m === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : m;
 }
 darkMQ.addEventListener && darkMQ.addEventListener('change', applyTheme);
-function applyAll() { applyLang(); applyTheme(); refreshHint(); }
+function applyAll() { applyLang(); applyTheme(); refreshHint(); if (CFG) aiSetMode(CFG.aiModel); }
 
 /* ───────── 页面切换 ───────── */
 function showView(v) {
@@ -30,6 +62,8 @@ function showView(v) {
   if (v === 'lib') renderLib();
   if (v === 'set') renderSettings();
   if (v === 'board') Board.enter();
+  if (v === 'svglib' && typeof SvgLib !== 'undefined') SvgLib.render();
+  if (v === 'svgcanvas' && typeof SvgCanvas !== 'undefined') SvgCanvas.enter();
 }
 $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) showView(b.dataset.v); };
 $('#btnCap').onclick = () => api.capture();
@@ -113,13 +147,21 @@ function segList() {
   const n = SEG.layers.filter(l => l.on).length;
   $('#segCount').textContent = t('countSel', { n: SEG.layers.length, s: n });
   const bs = $('#bSave'); if (bs) { bs.textContent = n ? t('saveSel', { n }) : t('saveHint'); bs.disabled = !n; }
-  el.innerHTML = SEG.layers.length ? SEG.layers.map(L => {
-    const k = 44, s = Math.min(k / L.bw, k / L.bh);
-    return `<div class="segRow${L.on ? ' sel' : ''}" data-l="${L.id}"><input type="checkbox" data-lc="${L.id}" ${L.on ? 'checked' : ''}><canvas data-lt="${L.id}" width="${Math.max(1, Math.round(L.bw * s))}" height="${Math.max(1, Math.round(L.bh * s))}"></canvas><input class="segName" data-ln="${L.id}" value="${esc(L.name)}"><span class="dim">${L.bw}×${L.bh}</span></div>`;
-  }).join('') : '<div class="tip">' + t('noElems') + '</div>';
+  /* 元素列表做成卡片网格：列数随侧栏宽度自动变，缩略图给足空间，不再一小条一小条地挤着 */
+  const BOX = 96;
+  el.innerHTML = SEG.layers.length ? SEG.layers.map(L =>
+    `<div class="segCard${L.on ? ' sel' : ''}" data-l="${L.id}">
+      <div class="scBox"><canvas data-lt="${L.id}" width="${BOX}" height="${BOX}"></canvas>
+        <input type="checkbox" data-lc="${L.id}" ${L.on ? 'checked' : ''}></div>
+      <input class="segName" data-ln="${L.id}" value="${esc(L.name)}">
+      <span class="dim">${L.bw}×${L.bh}</span>
+    </div>`).join('') : '<div class="tip">' + t('noElems') + '</div>';
   el.querySelectorAll('canvas[data-lt]').forEach(cv => {
     const L = SEG.layers.find(l => l.id === cv.dataset.lt); if (!L) return;
-    cv.getContext('2d').drawImage(segCut(L, 0).cv, 0, 0, cv.width, cv.height);
+    const g = cv.getContext('2d'), w = L.bw, h = L.bh, s = Math.min(BOX / w, BOX / h);
+    const dw = Math.max(1, Math.round(w * s)), dh = Math.max(1, Math.round(h * s));
+    g.clearRect(0, 0, BOX, BOX);
+    g.drawImage(segCut(L, 0).cv, Math.round((BOX - dw) / 2), Math.round((BOX - dh) / 2), dw, dh);
   });
 }
 function segRender() {
@@ -209,7 +251,15 @@ function segBindD() {
     if (id === 'segRe') { segBusy(t('splitting')); setTimeout(async () => { const info = await segAuto(); SEG.layers.forEach(l => l.on = false); segBusy(''); segRender(); segList(); const ti = $('#segInfo'); if (ti) ti.textContent = info; }, 20); return; }
     if (id === 'bAll') { SEG.layers.forEach(l => l.on = true); segList(); segRender(); return; }
     if (id === 'bNone') { SEG.layers.forEach(l => l.on = false); segList(); segRender(); return; }
-    if (id === 'bDel') { SEG.layers = SEG.layers.filter(l => !l.on); SEG.sel.clear(); segList(); segRender(); return; }
+    if (id === 'bDel') {
+      const killed = SEG.layers.filter(l => l.on);
+      if (!killed.length) { toast(t('pickOne')); return; }
+      SEG.layers = SEG.layers.filter(l => !l.on); SEG.sel.clear(); segList(); segRender();
+      undoToast(t('delUndo', { n: killed.length }), {
+        undo: () => { SEG.layers.push.apply(SEG.layers, killed); killed.forEach(l => l.on = true); SEG.sel = new Set(killed.map(l => l.id)); segList(); segRender(); }
+      });
+      return;
+    }
     if (id === 'bMerge') {
       const ls = SEG.layers.filter(l => l.on); if (ls.length < 2) { toast(t('pickTwo')); return; }
       const { w, h } = SEG.src, full = new Uint8Array(w * h);
@@ -221,7 +271,7 @@ function segBindD() {
     if (id === 'bCopy') { doCopy(); return; }
     if (id === 'bSvg') { doSvg(); return; }
     if (id === 'bNew') { renderEmpty(); return; }
-    const row = e.target.closest('.segRow');
+    const row = e.target.closest('.segRow, .segCard');
     if (row && !e.target.matches('input')) { const L = SEG.layers.find(l => l.id === row.dataset.l); if (L) { L.on = !L.on; SEG.sel = new Set([L.id]); segList(); segRender(); } }
   };
   host.oninput = (e) => {
@@ -277,9 +327,42 @@ async function openDataURL(url, name) {
 async function openFile(f) {
   try { const bm = await createImageBitmap(f); openImage(bm, bm.width, bm.height, f.name || t('image')); } catch (e) { toast(t('badImg')); }
 }
-['dragover', 'dragenter'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); const d = $('#drop'); if (d) d.classList.add('over'); }));
-['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); const d = $('#drop'); if (d) d.classList.remove('over'); }));
-document.addEventListener('drop', (e) => { const f = [...(e.dataTransfer && e.dataTransfer.files || [])].find(f => f.type.startsWith('image/')); if (f) openFile(f); });
+/* 外部拖图进来：按当前页签决定怎么处理
+ * 拆元素页 → 导入并拆解；画板 → 当图层/底图；素材库 → 直接存进库；SVG 库 / SVG 画布 → 当 SVG 处理 */
+const curView = () => { const v = document.querySelector('.view.on'); return v ? v.id : 'v-edit'; };
+const DROP_HINT = { 'v-edit': 'dropToSplit', 'v-lib': 'dropToLib', 'v-svglib': 'dropToSvgLib', 'v-svgcanvas': 'dropToSvgCanvas' };
+['dragover', 'dragenter'].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault();
+  const d = $('#drop'); if (d) d.classList.add('over');
+  const h = $('#dropHint');
+  if (h) { h.textContent = t(DROP_HINT[curView()] || 'dropToSplit'); h.classList.add('on'); }
+}));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault();
+  const d = $('#drop'); if (d) d.classList.remove('over');
+  const h = $('#dropHint'); if (h) h.classList.remove('on');
+}));
+document.addEventListener('drop', async (e) => {
+  const files = [...(e.dataTransfer && e.dataTransfer.files || [])];
+  const f = files.find(x => x.type && x.type.startsWith('image/'));
+  if (!f) return;
+  const v = curView();
+  if (v === 'v-board') return;                                     // 画板自己接（拖进去当图层 / 首张当底图）
+  if (v === 'v-lib') { await saveDroppedToLib(f); return; }
+  if ((v === 'v-svglib' || v === 'v-svgcanvas') && /svg/i.test((f.type || '') + f.name)) {
+    if (v === 'v-svglib') { await SvgLib.importFile(f); } else { await SvgCanvas.openFile(f); }
+    return;
+  }
+  openFile(f);                                                      // 拆元素页：导入并拆
+});
+/* 拖到素材库：直接存进去 */
+async function saveDroppedToLib(f) {
+  try {
+    const data = new Uint8Array(await f.arrayBuffer());
+    const r = await api.saveElements({ files: [{ name: (f.name || t('image')).replace(/\.[^.]+$/, ''), data }], group: '', quiet: true });
+    if (r && r.ok) { toast(t('savedLibDrop')); if ($('#v-lib').classList.contains('on')) renderLib(); } else toast(t('saveFail'));
+  } catch (e) { toast(t('saveFail')); }
+}
 document.addEventListener('paste', (e) => { const f = [...(e.clipboardData && e.clipboardData.files || [])].find(f => f.type.startsWith('image/')); if (f) openFile(f); });
 
 /* ───────── 素材库 ───────── */
@@ -291,15 +374,42 @@ async function renderLib() {
   for (const it of list) { const g = it.group || t('noGroup'); (groups[g] = groups[g] || []).push(it); }
   el.innerHTML = `<div class="page"><div class="libHead"><h2 class="pt">${t('libTitle')}</h2><span class="sp"></span><button class="btn" id="lbOpen">${t('libOpen')}</button><button class="btn ghost" id="lbRef">${t('libRefresh')}</button></div>
   <p class="lead">${t('libLead', { n: list.length, p: '<span class="path">' + esc(CFG ? CFG.saveDir : '') + '</span>' })}<br>${t('libLead2')}</p>
-  ${list.length ? Object.entries(groups).map(([g, items]) => `<div class="gh"><b>${esc(g)}</b><span>${t('nItems', { n: items.length })}</span></div><div class="grid">${items.map(it => `<div class="cell" data-rel="${esc(it.rel)}" data-copy title="${t('clickCopy')}"><div class="im"><img loading="lazy" src="${esc(it.url)}"></div><div class="nm" title="${esc(it.name)}">${esc(it.name)}</div><div class="bar"><button class="btn sm" data-act="reveal" title="${t('revealTip')}">${t('reveal')}</button><button class="btn sm danger" data-act="del" title="${t('delTip')}">${t('del')}</button></div></div>`).join('')}</div>`).join('') : '<div class="blank"><b>' + t('libEmptyT') + '</b><span>' + t('libEmptyD') + '</span></div>'}</div>`;
+  ${list.length ? Object.entries(groups).map(([g, items]) => `<div class="gh"><b>${esc(g)}</b><span>${t('nItems', { n: items.length })}</span></div><div class="grid">${items.map(it => `<div class="cell" data-rel="${esc(it.rel)}" data-copy title="${t('clickCopy')}"><div class="im"><img loading="lazy" src="${esc(it.url)}"></div><div class="nm" title="${esc(it.name)}">${esc(it.name)}</div><div class="bar"><button class="btn sm" data-act="board" title="${t('toBoardTip')}">${t('toBoard')}</button><button class="btn sm" data-act="reveal" title="${t('revealTip')}">${t('reveal')}</button><button class="btn sm danger" data-act="del" title="${t('delTip')}">${t('del')}</button></div></div>`).join('')}</div>`).join('') : '<div class="blank"><b>' + t('libEmptyT') + '</b><span>' + t('libEmptyD') + '</span></div>'}</div>`;
   $('#lbOpen').onclick = () => api.openDir(); $('#lbRef').onclick = renderLib;
   el.onclick = async (e) => {
     const cell = e.target.closest('.cell'); if (!cell) return; const rel = cell.dataset.rel;
     const b = e.target.closest('[data-act]');
     if (b && b.dataset.act === 'reveal') { api.revealLib(rel); return; }
-    if (b && b.dataset.act === 'del') { if (await api.delLib(rel)) { cell.remove(); toast(t('trashed')); } else toast(t('delFail')); return; }
+    if (b && b.dataset.act === 'board') { await addLibToBoard(rel); return; }
+    if (b && b.dataset.act === 'del') {
+      /* 删除先不落地，给 3 秒反悔：撤回就取消，超时才真正进回收站 */
+      cell.classList.add('pending');
+      let undone = false;
+      undoToast(t('delUndoFile'), {
+        undo: () => { undone = true; cell.classList.remove('pending'); toast(t('undone')); },
+        expire: async () => {
+          if (undone) return;
+          cell.classList.remove('pending');
+          if (await api.delLib(rel)) { cell.remove(); toast(t('trashed')); } else toast(t('delFail'));
+        }
+      });
+      return;
+    }
     await api.copyLib(rel); toast(t('copiedPaste'));
   };
+}
+
+/* 素材库 → 画板：复制一份进画板，素材本身留在库里，可以反复用 */
+async function addLibToBoard(rel) {
+  try {
+    const bytes = await api.readLib(rel); if (!bytes) throw new Error('read');
+    const ext = (rel.split('.').pop() || 'png').toLowerCase();
+    const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }[ext] || 'image/png';
+    const im = await Board.imgFromBlob(new Blob([bytes], { type: mime }));
+    showView('board'); Board.enter();          // 先把画板挂好，再放图层
+    Board.addLayer(im, rel.split('/').pop(), null, false);
+    toast(t('addedToBoard'));
+  } catch (e) { toast(t('badImg')); }
 }
 
 /* ───────── 设置 ───────── */
