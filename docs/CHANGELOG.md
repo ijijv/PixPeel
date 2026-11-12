@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- The companion web animation editor “小剪动画” now ships with every release (`xiaoji-animation.html`, single file, double-click to open).
+- Fix: after moving the install or switching from the dev build to the packaged one, the launch-at-login entry still pointed at the old path and nothing started on boot. It is now re-aligned to the current executable on startup.
+- The in-app hint for linking with the editor now shows the real file name, and the tab is called “贴纸” (matching the editor) instead of “贴图”.
+
 ## 1.0.0
 
 First public release.

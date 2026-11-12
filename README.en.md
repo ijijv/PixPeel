@@ -46,7 +46,9 @@ Each release includes `SHA256SUMS.txt` to verify downloads.
 
 **Upgrading**: just run the new installer; it replaces the old version and keeps your settings and saved elements.
 
-### First-run notes (the builds are not paid-code-signed)
+### First-run notes
+
+The builds are not signed with a commercial code-signing certificate (those cost money), so the system shows “unknown publisher”. That is normal and does not mean the app is unsafe.
 
 - **Windows**: SmartScreen may warn → “More info” → “Run anyway”.
 - **macOS**: drag PixPeel to Applications. If it says the app is damaged / from an unverified developer, run `xattr -cr /Applications/PixPeel.app` or right-click → Open. Then enable **System Settings → Privacy & Security → Screen Recording** for PixPeel and restart it.
@@ -65,11 +67,12 @@ Elements are saved to `Pictures/PixPeel` by default (changeable).
 
 ### Link with “小剪动画”
 
-“小剪动画” is a separate companion tool (a local animation editor that runs in the browser) — it is a different program from PixPeel. You only need this step if you already have “小剪动画.html”; if all you want is splitting images into transparent stickers, ignore it entirely.
+“小剪动画” is a separate companion tool (a local animation editor that runs in the browser) — it is a different program from PixPeel. You only need this step if you want to make animations with it; if all you want is splitting images into transparent stickers, ignore it entirely.
 
-1. In PixPeel settings make sure “Let the editor read the library” is on (`127.0.0.1:17652`, this computer only).
-2. Open the **locally downloaded “小剪动画.html”**, go to “贴图” on the left and click “Connect PixPeel desktop”.
-3. Newly saved elements then appear automatically.
+1. Download [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/download/v1.0.0/xiaoji-animation.html) — that is “小剪动画”, a single self-contained web page; double-click to open, nothing to install.
+2. In PixPeel settings make sure “Let the editor read the library” is on (`127.0.0.1:17652`, this computer only).
+3. Open the **locally downloaded xiaoji-animation.html**, go to “贴纸” on the left and click “Connect PixPeel desktop”.
+4. Newly saved elements then appear automatically. You can also tick “自动同步” so anything you save in the desktop app lands in the sticker list right away.
 
 > The online page may be blocked by the browser from reaching local addresses; use the downloaded file.
 
@@ -95,18 +98,7 @@ Output goes to `dist/`. macOS packages can only be built on macOS, so use GitHub
 > The rpm package depends on the `rpmbuild` version of the build machine: newer rpm (6.x) dropped `xzmt` compression and the bundled electron-builder cannot produce it.
 > For a reliable AppImage + deb, use `npm run dist:linux:core`; to build only the rpm, use `npm run dist:linux:rpm`.
 
-### Publishing a release
-
-1. Bump `version` in `package.json` and describe changes in `docs/CHANGELOG*.md`.
-2. Make sure the repository slug in `config.js`, `package.json` and the READMEs is `ijijv/PixPeel` (the update check relies on it).
-3. Commit, then tag and push:
-   ```bash
-   git tag v1.0.1 && git push origin v1.0.1
-   ```
-4. GitHub Actions (`.github/workflows/release.yml`) builds on Windows / macOS / Linux, creates the Release and attaches every installer plus `SHA256SUMS.txt`.
-5. The Linux rpm package depends on the build machine's rpm version, so the CI Linux job is pinned to `ubuntu-24.04`. If you move to a newer runner, check that rpm still builds (AppImage and deb are unaffected).
-
-To rename the app, edit `config.js` and `package.json` (`productName`, `appId`).
+The full release procedure lives in [docs/RELEASING.md](docs/RELEASING.md).
 
 ### Layout
 
@@ -115,7 +107,8 @@ main.js  preload.js  lib.js  server.js  config.js   main process & local link se
 overlay.html  live.html                              capture / click-to-extract overlays
 renderer/   UI, i18n (i18n.js), splitting engine (engine.js)
 build/      icons, tray icons, installer script & license
-docs/       changelog, privacy policy (also shown in-app)
+docs/       changelog, privacy policy (also shown in-app), release notes, link protocol
+editor/     xiaoji-animation.html — the companion web animation editor “小剪动画” (single file)
 tools/      icon generator
 ```
 

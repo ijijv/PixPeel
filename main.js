@@ -428,8 +428,19 @@ app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => { globalShortcut.unregisterAll(); server.stop(); });
 app.on('activate', () => showWindow());
 
+/* 开机自启项必须跟着当前这个 exe 走。
+ * 换机器位置、或者从“开发版 dist\win-unpacked”换成正式安装版之后，
+ * 注册表里还指着旧路径，开机会拉起一个已经不存在的程序。启动时重新对齐一次。 */
+function syncLoginItem() {
+  if (!app.isPackaged) return; // 开发模式跑的是 electron.exe，不写自启项
+  try {
+    app.setLoginItemSettings({ openAtLogin: !!settings.openAtLogin, path: process.execPath });
+  } catch (err) { /* ignore */ }
+}
+
 app.whenReady().then(async () => {
   loadSettings(); applyTheme(); ensureDir(settings.saveDir);
+  syncLoginItem();
   ipc(); createWindow(); buildTray();
   const r = registerHotkeys();
   const sv = await applyServer();

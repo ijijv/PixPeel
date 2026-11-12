@@ -46,7 +46,9 @@
 
 **升级**：直接运行新版安装包，会自动覆盖旧版，设置和素材都保留。
 
-### 首次运行的提示（因为安装包没有付费代码签名）
+### 首次运行的提示
+
+安装包没有购买商业代码签名证书（那个要花钱），所以系统会显示“未知发布者”，这是正常现象，不是病毒。
 
 - **Windows**：可能出现“Windows 已保护你的电脑”（SmartScreen）→ 点“更多信息” → “仍要运行”。
 - **macOS**：打开 dmg 把 PixPeel 拖进“应用程序”。第一次若提示“已损坏 / 无法验证开发者”，在终端执行：
@@ -66,11 +68,12 @@
 
 ### 和“小剪动画”联动
 
-“小剪动画”是另一个配套工具（一个跑在浏览器里的本地动画编辑器），和 PixPeel 是两个独立的软件。只有你手上已经有「小剪动画.html」时才需要这一步；只是想把图片拆成透明贴纸的话，完全不用管它。
+“小剪动画”是另一个配套工具（一个跑在浏览器里的本地动画编辑器），和 PixPeel 是两个独立的软件。只有你想拿它做动画时才需要这一步；只是想把图片拆成透明贴纸的话，完全不用管它。
 
-1. 在 PixPeel 设置里确认“允许小剪动画读取素材库”已开启（默认 `127.0.0.1:17652`，只在本机可访问）。
-2. 用浏览器打开**下载到本地的“小剪动画.html”**，进入左侧“贴图”，点“连接 PixPeel 桌面版”。
-3. 之后新保存的元素会自动出现在贴图里。
+1. 下载 [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/download/v1.0.0/xiaoji-animation.html)（就是「小剪动画」，单文件网页版，双击就能用，不用装任何东西）。
+2. 在 PixPeel 设置里确认“允许小剪动画读取素材库”已开启（默认 `127.0.0.1:17652`，只在本机可访问）。
+3. 用浏览器打开**下载到本地的 xiaoji-animation.html**，进入左侧“贴纸”，点“连接 PixPeel 桌面版”。
+4. 之后新保存的元素会自动出现在贴图里；也可以勾上“自动同步”，桌面版一存新元素就自动进贴图。
 
 > 在线网页可能被浏览器拦截对本机地址的访问，请使用下载到本地的页面文件。
 
@@ -103,18 +106,7 @@ npm run dist:linux   # Linux 机器上：AppImage / deb / rpm（x64 / arm64）
 $env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"; $env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"; npm install
 ```
 
-### 发布新版本
-
-1. 改 `package.json` 的 `version`，在 `docs/CHANGELOG*.md` 写上更新内容。
-2. 确认 `config.js`、`package.json`、README 里的仓库地址是 `ijijv/PixPeel`（“检查更新”靠它）。
-3. 提交后打 tag 并推送：
-   ```bash
-   git tag v1.0.1 && git push origin v1.0.1
-   ```
-4. GitHub Actions（`.github/workflows/release.yml`）会在 Windows / macOS / Linux 上分别打包，并自动创建 Release、附上所有安装包与 `SHA256SUMS.txt`。
-5. Linux 的 rpm 包依赖构建机的 rpm 版本，所以 CI 里 Linux 固定跑在 `ubuntu-24.04`；以后换更新的 runner，记得先确认 rpm 还能打出来（AppImage 和 deb 不受影响）。
-
-改软件名只需改 `config.js` 与 `package.json`（`productName`、`appId`）；安装向导脚本和许可协议里也有名字，可全局替换一次。
+发布新版本的完整步骤见 [docs/RELEASING.md](docs/RELEASING.md)。
 
 ### 目录
 
@@ -123,7 +115,8 @@ main.js  preload.js  lib.js  server.js  config.js   主进程与本地联动服�
 overlay.html  live.html                              框选层 / 点选提取层
 renderer/   界面、多语言（i18n.js）、拆元素引擎（engine.js）
 build/      图标、托盘图标、安装向导脚本与许可协议
-docs/       更新日志、隐私政策（软件内也会显示）
+docs/       更新日志、隐私政策（软件内也会显示）、发布说明、联动协议
+editor/     xiaoji-animation.html（配套的网页版动画编辑器「小剪动画」，单文件）
 tools/      图标生成脚本
 ```
 

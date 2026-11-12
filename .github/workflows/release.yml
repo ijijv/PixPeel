@@ -67,6 +67,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: 附上小剪动画（H5 单文件网页版）
+        run: cp editor/xiaoji-animation.html artifacts/xiaoji-animation.html
       - name: SHA-256 checksums
         run: cd artifacts && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
