@@ -9,6 +9,8 @@
 - Fix: the SVG canvas kept the previous language’s wording after switching the interface language.
 - Fix: the element list jumped back to the top when it was redrawn (scrolling down and then clicking an element sent you back to the first row). The scroll position is kept now.
 - The element panel is a denser card grid that reflows with the sidebar width, so the empty space is used.
+- Fix: importing several images at once made them fight over “the image currently being split”, so elements could be cut from the wrong source (a red photo yielding blue pixels). Images are now processed one after another.
+- Fix: importing an image could hang forever while the app was in the background (image decoding never returned when the window was hidden).
 
 ## 1.0.3
 
