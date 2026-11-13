@@ -170,6 +170,8 @@ const SvgCanvas = (() => {
 
   function mount() {
     const host = $('#v-svgcanvas');
+    /* 还没打开过 SVG：显示空状态，不要去 importNode(null) */
+    if (!S.svg) { emptyState(host); return; }
     host.innerHTML = `<div class="sv">
       <aside class="sv-side">
         <div class="sv-h"><b>${t('svgLayers')}</b><span class="sp"></span><span class="dim" id="svCount"></span></div>
@@ -229,6 +231,17 @@ const SvgCanvas = (() => {
       S.layers.forEach(L => { L.bb = null; apply(L); });
       drawOverlay();
     });
+  }
+
+  /* 还没打开 SVG 时的空状态 */
+  function emptyState(host) {
+    host.innerHTML = `<div class="page"><div class="tip">${t('svgNoFile')}</div>
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:center">
+        <button class="btn" id="svgEmptyImp">${t('svgImpBtn')}</button>
+        <button class="btn" id="svgEmptyLib">${t('svgLibTitle')}</button>
+      </div></div>`;
+    const b1 = $('#svgEmptyImp'); if (b1) b1.onclick = () => SvgLib.pick();
+    const b2 = $('#svgEmptyLib'); if (b2) b2.onclick = () => showView('svglib');
   }
 
   /* ───────── 视图 ───────── */
@@ -574,8 +587,10 @@ const SvgCanvas = (() => {
   }
 
   function enter() {
+    /* 还没打开过 SVG 就别挂载，画一个空状态出来（否则 importNode(null) 会抛异常） */
+    if (!S.svg) { emptyState($('#v-svgcanvas')); return; }
     /* 语言变了要重新挂载，否则面板上还是上一种语言的文案 */
-    if (!S.svg || S.lang !== I18N.lang) { S.lang = I18N.lang; mount(); }
+    if (S.lang !== I18N.lang) { S.lang = I18N.lang; mount(); }
     requestAnimationFrame(() => { if (S.fit) fit(); else drawOverlay(); });
   }
   /* 键盘：Delete 删选中的、Esc 取消选中、方向键微调 */

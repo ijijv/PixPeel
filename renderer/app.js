@@ -169,9 +169,11 @@ function segList() {
   const bs = $('#bSave'); if (bs) { bs.textContent = n ? t('saveSel', { n }) : t('saveHint'); bs.disabled = !n; }
   /* 元素列表做成卡片网格：列数随侧栏宽度自动变，缩略图给足空间，不再一小条一小条地挤着 */
   const BOX = 96;
-  /* 整块重画会把滚动位置弹回顶部，先记住、画完再放回去 */
+  /* 整块重画会把滚动位置弹回顶部，先记住、画完再放回去。
+     注意：真正滚的是 #segList 自己（max-height:280px + overflow:auto），外面那层 .inspBody 有时也在滚，两个都要还回去 */
   const box = el.closest('.inspBody') || el.parentElement;
-  const keepTop = box ? box.scrollTop : 0;
+  const keepTop = el.scrollTop;
+  const keepBody = box ? box.scrollTop : 0;
   el.innerHTML = SEG.layers.length ? SEG.layers.map(L => {
     const tile = SEG.tiles[L.tile];
     return `<div class="segCard${L.on ? ' sel' : ''}" data-l="${L.id}">
@@ -181,7 +183,8 @@ function segList() {
       <span class="dim">${L.bw}×${L.bh}</span>
       ${SEG.tiles.length > 1 && tile ? `<span class="src" title="${esc(tile.name)}">${esc(tile.name)}</span>` : ''}
     </div>`; }).join('') : '<div class="tip">' + t('noElems') + '</div>';
-  if (box) box.scrollTop = keepTop;
+  if (box) box.scrollTop = keepBody;
+  el.scrollTop = keepTop;
   el.querySelectorAll('canvas[data-lt]').forEach(cv => {
     const L = SEG.layers.find(l => l.id === cv.dataset.lt); if (!L) return;
     const g = cv.getContext('2d'), w = L.bw, h = L.bh, s = Math.min(BOX / w, BOX / h);
