@@ -11,6 +11,8 @@
 - The element panel is a denser card grid that reflows with the sidebar width, so the empty space is used.
 - Fix: importing several images at once made them fight over “the image currently being split”, so elements could be cut from the wrong source (a red photo yielding blue pixels). Images are now processed one after another.
 - Fix: importing an image could hang forever while the app was in the background (image decoding never returned when the window was hidden).
+- Fix: clicking “SVG Canvas” in the rail before opening any SVG crashed the page. It now shows an empty state with “Import SVG” and “SVG Library” entry points.
+- Fix: the element list still jumped back to the top when you clicked an element after scrolling — the scroll position was being saved on the outer panel instead of the list that actually scrolls. The list now stays where you left it.
 
 ## 1.0.3
 
