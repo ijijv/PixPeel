@@ -87,6 +87,7 @@
       aiReady: '已下载', aiNotReady: '未下载',
       aiDl: '下载模型', aiRedl: '重新下载', aiUseF: '换成浮点版', aiUseQ: '换成量化版',
       aiDlModel: '正在下载 AI 模型（约 {size}）…', aiDlDone: 'AI 模型下好了', aiDlFail: '模型下载失败：{e}',
+      aiFallback: '这台机器扛不住浮点版，已自动换回量化版继续',
       aiSwapped: '已切换到{m}', aiReqQ: '8 GB 内存够用', aiReqF: '16 GB 内存更稳',
       /* 设置 */
       setTitle: '设置', setLead: '改动立即生效。',
@@ -210,6 +211,7 @@
       aiReady: 'Downloaded', aiNotReady: 'Not downloaded',
       aiDl: 'Download model', aiRedl: 'Download again', aiUseF: 'Use full precision', aiUseQ: 'Use quantized',
       aiDlModel: 'Downloading the AI model (~{size})…', aiDlDone: 'AI model is ready', aiDlFail: 'Model download failed: {e}',
+      aiFallback: 'This machine could not handle the full-precision model — switched back to the quantized one',
       aiSwapped: 'Switched to {m}', aiReqQ: 'Runs on 8 GB of RAM', aiReqF: '16 GB of RAM is safer',
       setTitle: 'Settings', setLead: 'Changes apply immediately.',
       sGeneral: 'General', sLang: 'Language', sLangD: '“System” follows your operating system language.', langAuto: 'System',

@@ -67,8 +67,19 @@ function segLayerFromFull(full,w,h,name){
   for(let y=0;y<bh;y++)for(let x=0;x<bw;x++)m[y*bw+x]=full[(y0+y)*w+x0+x];
   return segMk({bx:x0,by:y0,bw,bh,m,area,name});
 }
+/** 切语言时，把自动命名的元素重新本地化（用户手动改过名字的不动）。返回有没有改动 */
+function relabelLayers() {
+  let n = 0;
+  for (const L of (SEG.layers || [])) {
+    if (L.autoName == null) continue;
+    const nm = t('elem') + ' ' + L.autoName;
+    if (L.name !== nm) { L.name = nm; n++; }
+  }
+  return n > 0;
+}
 function segMk(o){
-  const L=Object.assign({id:uid(),on:true},o);L.name=L.name||(t('elem')+' '+(SEG.seq++));
+  const L=Object.assign({id:uid(),on:true},o);
+  if(!L.name){L.name=t('elem')+' '+(SEG.seq++);L.autoName=SEG.seq-1;}   /* 自动命名：记下序号，切语言时能重新本地化 */
   L.color=SEGCOL[(SEG.layers.length+SEG.seq)%SEGCOL.length];
   const c=document.createElement('canvas');c.width=L.bw;c.height=L.bh;const g=c.getContext('2d'),id=g.createImageData(L.bw,L.bh);
   const rgb=[parseInt(L.color.slice(1,3),16),parseInt(L.color.slice(3,5),16),parseInt(L.color.slice(5,7),16)];
@@ -181,7 +192,7 @@ function segApply(full){
     for(let i=0;i<cur.length;i++){if(SEG.mode==='add'){if(full[i])cur[i]=1}else if(full[i])cur[i]=0}
     const nl=segLayerFromFull(cur,w,h,L.name),ix=SEG.layers.indexOf(L);
     if(!nl){SEG.layers.splice(ix,1);SEG.sel.delete(L.id);continue}
-    nl.color=L.color;nl.on=L.on;nl.tile=L.tile;SEG.layers[ix]=nl;last=nl;
+    nl.color=L.color;nl.on=L.on;nl.tile=L.tile;nl.autoName=L.autoName;SEG.layers[ix]=nl;last=nl;
   }
   SEG.sel=last?new Set([last.id]):new Set();
 }
@@ -282,11 +293,21 @@ function segSmoothEdge(g,W,H){
  * 量化：模型小（十几 MB）、下载快、省内存，日常够用；
  * 浮点：精度略高，但体积和内存都要多一倍多，机器够好再换。 */
 let AI_MODE = 'q8';
+/* 浮点版在内存不够的机器上会加载失败（甚至把标签页拖垮）。
+ * 一旦失败就自动降级回量化版重试一次，只降级一次，不来回横跳。 */
+let AI_DOWNGRADED = false;
 function aiSetMode(m) {
   const n = (m === 'fp32') ? 'fp32' : 'q8';
   if (n === AI_MODE) return;
   AI_MODE = n;
   if (SEG.ai) { try { SEG.ai.w.terminate(); URL.revokeObjectURL(SEG.ai.url); } catch (e) { } SEG.ai = null; }
+}
+/** 浮点版加载失败 → 换回量化版，返回 true 表示已降级 */
+function aiFallbackToQ8() {
+  if (AI_MODE !== 'fp32' || AI_DOWNGRADED) return false;
+  AI_DOWNGRADED = true;
+  aiSetMode('q8');
+  return true;
 }
 const aiCacheKey = () => 'pp_ai_' + AI_MODE;
 const aiCached = () => { try { return localStorage.getItem(aiCacheKey()) === '1'; } catch (e) { return false; } };
@@ -307,7 +328,12 @@ async function aiDownload() {
   if (A.ready) { aiMarkReady(); return true; }
   segBusy(t('aiDlModel', { size: aiInfo().size }));
   try { await segAIcall({ t: 'init' }, 'ready'); A.ready = true; aiMarkReady(); segBusy(''); toast(t('aiDlDone')); return true; }
-  catch (e) { segBusy(''); toast(t('aiDlFail', { e: String(e.message || e).slice(0, 60) })); return false; }
+  catch (e) {
+    segBusy('');
+    /* 浮点版扛不住？自动换量化版再试一次 */
+    if (aiFallbackToQ8()) { toast(t('aiFallback')); return await aiDownload(); }
+    toast(t('aiDlFail', { e: String(e.message || e).slice(0, 60) })); return false;
+  }
 }
 /** 换模型：把旧的 worker 停掉，下次点 AI 就用新的那套权重 */
 function aiSwap() {
@@ -397,6 +423,16 @@ async function segAIClick(x,y){
     segBusy('');
     const {w,h}=SEG.src;if(d.W!==w||d.H!==h){toast(t('aiSize'));return}
     segApply(d.m);segRender();
-  }catch(e){segBusy('');console.warn(e);toast(t('aiFail',{e:String(e.message||e).slice(0,60)}))}
+  }catch(e){
+    segBusy('');console.warn(e);
+    /* 浮点版在这台机器上起不来？自动换量化版重试一次 */
+    if(aiFallbackToQ8()){
+      toast(t('aiFallback'));
+      try{ SEG.ai=null; await segAIClick(x,y); }
+      catch(e2){ console.warn(e2); toast(t('aiFail',{e:String(e2.message||e2).slice(0,60)})); }
+      return;
+    }
+    toast(t('aiFail',{e:String(e.message||e).slice(0,60)}));
+  }
 }
 function segBusy(t){const b=$('#segBusy');if(!b)return;b.textContent=t||'';b.style.display=t?'grid':'none'}

@@ -43,9 +43,14 @@ const pretty = (acc) => String(acc || '').replace('CommandOrControl', api.platfo
 
 /* ───────── 语言 / 主题 ───────── */
 function applyLang() {
+  const prev = I18N.lang;
   I18N.setLang(CFG && CFG.langResolved || I18N.resolve('auto', navigator.language));
   document.documentElement.lang = I18N.lang === 'zh' ? 'zh-CN' : 'en';
   document.querySelectorAll('[data-i18n]').forEach(e => { e.textContent = t(e.dataset.i18n); });
+  /* 语言变了：自动命名的元素（元素 1 / Element 1）要跟着换文案，用户自己改过的不动 */
+  if (prev && prev !== I18N.lang && typeof relabelLayers === 'function') {
+    if (relabelLayers()) { segList(); segRender(); }
+  }
 }
 const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
@@ -326,7 +331,7 @@ function segBindD() {
       const ls = SEG.layers.filter(l => l.on); if (ls.length < 2) { toast(t('pickTwo')); return; }
       const { w, h } = SEG.src, full = new Uint8Array(w * h);
       for (const L of ls) { const f = segFull(L); for (let i = 0; i < f.length; i++) if (f[i]) full[i] = 1; }
-      const nl = segLayerFromFull(full, w, h, ls[0].name); nl.on = true;
+      const nl = segLayerFromFull(full, w, h, ls[0].name); nl.on = true; nl.autoName = ls[0].autoName;
       SEG.layers = SEG.layers.filter(l => !l.on); SEG.layers.push(nl); SEG.sel = new Set([nl.id]); segList(); segRender(); return;
     }
     if (id === 'bSave') { doSave(); return; }
@@ -355,7 +360,7 @@ function segBindD() {
   host.oninput = (e) => {
     const sp = e.target.dataset && e.target.dataset.sp;
     if (sp) { const v = sp === 'how' ? e.target.value : +e.target.value; SEG[sp] = v; const b = e.target.parentElement && e.target.parentElement.querySelector('b'); if (b) b.textContent = v; if (sp === 'how') segParams(); return; }
-    if (e.target.dataset && e.target.dataset.ln) { const L = SEG.layers.find(l => l.id === e.target.dataset.ln); if (L) L.name = e.target.value; }
+    if (e.target.dataset && e.target.dataset.ln) { const L = SEG.layers.find(l => l.id === e.target.dataset.ln); if (L) { L.name = e.target.value; L.autoName = null; } }  /* 用户自己改过名字，就不再跟着语言变 */
   };
   host.onchange = (e) => {
     if (e.target.dataset && e.target.dataset.lc) { const L = SEG.layers.find(l => l.id === e.target.dataset.lc); if (L) { L.on = e.target.checked; if (L.on) SEG.sel = new Set([L.id]); segList(); segRender(); } }

@@ -13,6 +13,8 @@
 - Fix: importing an image could hang forever while the app was in the background (image decoding never returned when the window was hidden).
 - Fix: clicking “SVG Canvas” in the rail before opening any SVG crashed the page. It now shows an empty state with “Import SVG” and “SVG Library” entry points.
 - Fix: the element list still jumped back to the top when you clicked an element after scrolling — the scroll position was being saved on the outer panel instead of the list that actually scrolls. The list now stays where you left it.
+- Fix: element names (“元素 1” / “Element 1”) were frozen in whichever language was active when you split the image, so switching the interface language left the old wording behind. Auto-generated names now follow the language; names you renamed yourself are left alone.
+- AI picking with the full-precision model used to fail outright on machines without enough memory. It now falls back to the quantized model automatically and tells you it did.
 
 ## 1.0.3
 
