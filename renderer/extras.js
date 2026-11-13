@@ -288,7 +288,7 @@ async function hdRun(rels) {
 async function hdDecorate() {
   const cells = [...document.querySelectorAll('#v-lib .cell')]; const low = [];
   await Promise.all(cells.map(async (c) => {
-    const im = c.querySelector('img'); try { await im.decode(); } catch (e) { }
+    const im = c.querySelector('img'); try { if (!im.complete) await new Promise(r => { im.onload = r; im.onerror = r; }); } catch (e) { }
     const w = im.naturalWidth, h = im.naturalHeight; if (!w) return;
     const nm = c.querySelector('.nm'); nm.insertAdjacentHTML('beforeend', ` <i class="dm">${w}×${h}</i>`);
     const isHD = /-HD(_\d+)?\.[a-z]+$/i.test(c.dataset.rel);

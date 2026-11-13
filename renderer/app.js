@@ -92,8 +92,9 @@ function openImage(el, w, h, name) {
   if (SEG.ai) { try { SEG.ai.w.terminate(); URL.revokeObjectURL(SEG.ai.url); } catch (e) { } SEG.ai = null; }
   /* 批量导入：每张图都是拼贴墙上的一块，元素全部汇总到一个列表里 */
   const src = segPrep(el, w, h);
-  segAddTile(src, name);
-  SEG.cur = SEG.tiles.length - 1;
+  const tile = segAddTile(src, name);
+  const tileIdx = SEG.tiles.length - 1;
+  SEG.cur = tileIdx;
   SEG.src = src;
   SEG.sel = new Set(); SEG.hov = null; SEG.tool = 'pick'; SEG.mode = 'new'; SEG.lasso = null;
   SEG.name = name || t('image');
@@ -102,8 +103,9 @@ function openImage(el, w, h, name) {
   segBusy(t('splitting'));
   const before = new Set(SEG.layers.map(l => l.id));
   return new Promise(res => setTimeout(async () => {
+    SEG.cur = tileIdx; SEG.src = src;          // 拆的时候锁死这一张，别被别的图抢走
     const info = await segAuto();
-    SEG.layers.forEach(l => { if (!before.has(l.id)) { l.tile = SEG.cur; l.on = false; } });
+    SEG.layers.forEach(l => { if (!before.has(l.id)) { l.tile = tileIdx; l.on = false; } });
     segBusy(''); segRender(); segList();
     const tp = $('#segInfo'); if (tp) tp.textContent = info;
     res(SEG.layers.length - before.size);
@@ -395,7 +397,9 @@ document.addEventListener('keydown', (e) => {
 
 async function openDataURL(url, name) {
   try {
-    const img = new Image(); img.src = url; await img.decode();
+    /* 用 onload 而不是 decode()：decode() 在窗口隐藏时可能永远不返回 */
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('img')); img.src = url; });
     return await openImage(img, img.naturalWidth, img.naturalHeight, name);
   } catch (e) { toast(t('badImg')); }
 }
@@ -671,7 +675,7 @@ function refreshHint() { const f = (a) => pretty(a).replace(/ \+ /g, '+'); $('#h
 (async function () {
   CFG = await api.getSettings(); applyAll(); renderEmpty();
   api.onImage((d) => openDataURL(d.dataURL, d.name));
-  api.onImages((d) => { (d.items || []).forEach(it => openDataURL(it.dataURL, it.name)); });
+  api.onImages((d) => { (async () => { for (const it of d.items || []) await openDataURL(it.dataURL, it.name); })(); });
   api.onSettings((s) => { CFG = s; applyAll(); });
   api.onToast((m) => toast(m));
   api.onNav((v) => showView(v));
