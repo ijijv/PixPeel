@@ -190,6 +190,51 @@ const aiCacheKey = () => 'pp_ai_' + AI_MODE;
 const aiCached = () => { try { return localStorage.getItem(aiCacheKey()) === '1'; } catch (e) { return false; } };
 const aiMarkReady = () => { try { localStorage.setItem(aiCacheKey(), '1'); } catch (e) { } };
 
+/* 两种模型的体积和需求，写在面板上给用户看 */
+const AI_META = {
+  q8: { size: '15–40 MB', req: 'aiReqQ' },
+  fp32: { size: '40–100 MB', req: 'aiReqF' }
+};
+function aiInfo() {
+  const m = AI_META[AI_MODE] || AI_META.q8;
+  return { mode: AI_MODE, size: m.size, req: m.req, ready: aiCached() };
+}
+/** 提前把模型下好（点了 AI 点选再下也行，这里可以手动触发） */
+async function aiDownload() {
+  const A = segAIWorker();
+  if (A.ready) { aiMarkReady(); return true; }
+  segBusy(t('aiDlModel', { size: aiInfo().size }));
+  try { await segAIcall({ t: 'init' }, 'ready'); A.ready = true; aiMarkReady(); segBusy(''); toast(t('aiDlDone')); return true; }
+  catch (e) { segBusy(''); toast(t('aiDlFail', { e: String(e.message || e).slice(0, 60) })); return false; }
+}
+/** 换模型：把旧的 worker 停掉，下次点 AI 就用新的那套权重 */
+function aiSwap() {
+  aiSetMode(AI_MODE === 'q8' ? 'fp32' : 'q8');
+  if (SEG.ai) { try { SEG.ai.w.terminate(); URL.revokeObjectURL(SEG.ai.url); } catch (e) { } SEG.ai = null; }
+  aiSetMode(AI_MODE);
+  return aiInfo();
+}
+/** AI 工具面板：显示当前用的是哪个模型、多大、要不要先下载 */
+function aiPanel() {
+  const i = aiInfo();
+  const name = i.mode === 'fp32' ? t('aiModelF') : t('aiModelQ');
+  return `<div class="aibox">
+    <div class="airow"><span>${t('aiNow')}</span><b>${name}</b></div>
+    <div class="airow"><span>${t('aiModelSize')}</span><span>${i.size}</span></div>
+    <div class="airow"><span>${t('aiReq')}</span><span>${t(i.req)}</span></div>
+    <div class="airow"><span>${t('aiState')}</span><span>${i.ready ? t('aiReady') : t('aiNotReady')}</span></div>
+    <div class="chips">
+      <button class="btn sm" id="aiDl">${i.ready ? t('aiRedl') : t('aiDl')}</button>
+      <button class="btn sm" id="aiSwap">${i.mode === 'q8' ? t('aiUseF') : t('aiUseQ')}</button>
+    </div>
+  </div>`;
+}
+/** 面板按钮的点击处理（在 segParams 渲染完之后调用） */
+function aiBind() {
+  const dl = document.querySelector('#aiDl'); if (dl) dl.onclick = () => aiDownload();
+  const sw = document.querySelector('#aiSwap'); if (sw) sw.onclick = () => { aiSwap(); if (segParams) segParams(); toast(t('aiSwapped', { m: AI_MODE === 'fp32' ? t('aiModelF') : t('aiModelQ') })); };
+}
+
 function segAIWorker(){
   if(SEG.ai)return SEG.ai;
   const M=JSON.stringify({lib:t('aiLib'),libFail:t('aiLibFail'),pick:t('aiPick'),from:t('aiFrom'),modelFail:t('aiModelFail')});

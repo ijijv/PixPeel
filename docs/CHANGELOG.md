@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.3
+
+- Fix: “Check for updates” reported HTTP 301. The GitHub account was renamed, so the old repository path redirects — the correct path is used now and the request follows redirects automatically.
+- Fix: library card buttons were cut off in English (“Board” showed as “oard”). The action buttons moved to the bottom of the card and are allowed to wrap.
+- Fix: reordering layers in the SVG canvas did nothing (the DOM order is really changed now, so the stacking updates).
+- Fix: layers in the SVG canvas rotated around the canvas origin; they now rotate around their own centre.
+- Fix: the middle mouse button could not pan the SVG canvas.
+- SVG canvas: marquee multi-select, corner-scale + top-rotate handles, Delete to remove the selection, Clear all, arrow-key nudging.
+- Board: marquee multi-select (the selection can then be deleted / scaled / rotated together), Clear canvas. The middle button still pans.
+- The Extract page’s element list gained “Clear”; the element library and the SVG library gained “Clear” as well (everything is marked first and can be undone within 3 seconds — only then is it really deleted).
+- The AI pick panel now spells out which model is in use, how big it is, what hardware it wants and whether it is already downloaded; you can download it or switch between quantized and full precision with one click.
+- The logo in the left rail now has a dashed ring slowly turning around its centre dot.
+- Images can be dropped straight onto the rail buttons: “Extract” splits them, “Library” stores them, “Board” adds a layer, “SVG Library / SVG Canvas” treat them as SVG — which is different from dropping onto the working area on the right.
+
 ## 1.0.2
 
 - New “SVG Library” and “SVG Canvas” sections: layered SVGs are stored on their own; in the SVG canvas you can show/hide, move, scale, rotate, fade and delete each layer, and export any single layer as a transparent PNG back into the element library. See docs/LINK-PROTOCOL.md for the interface contract.

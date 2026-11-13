@@ -298,9 +298,16 @@ function publicSettings() {
 }
 
 /* ---------- 检查更新：只问 GitHub 一次最新版本号，不更新也不上传任何东西 ---------- */
-function getJSON(url) {
+function getJSON(url, depth) {
   return new Promise((resolve, reject) => {
+    depth = depth || 0;
     const req = https.get(url, { headers: { 'User-Agent': APP.name, Accept: 'application/vnd.github+json' }, timeout: 8000 }, (r) => {
+      /* GitHub 对改名/换过用户名的仓库会回 301（指向 /repositories/<id>），这里跟一下 */
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && depth < 4) {
+        r.resume();
+        let next; try { next = new URL(r.headers.location, url).href; } catch (e) { return reject(new Error('HTTP ' + r.statusCode)); }
+        return getJSON(next, depth + 1).then(resolve, reject);
+      }
       let b = ''; r.setEncoding('utf8'); r.on('data', (c) => { b += c; });
       r.on('end', () => { if (r.statusCode !== 200) return reject(new Error('HTTP ' + r.statusCode)); try { resolve(JSON.parse(b)); } catch (e) { reject(e); } });
     });

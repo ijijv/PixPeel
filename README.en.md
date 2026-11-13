@@ -22,16 +22,16 @@ Everything runs locally. No uploads, no account.
 - **Board**: compose pictures from library elements or imported images; pick canvas size and transparent / solid background; move, scale, rotate, delete; export PNG / JPG or save back to the library.
 - **Undo / zoom / shortcuts**: Ctrl+Z / Ctrl+Shift+Z on both the Extract page and the Board, wheel zoom, Space-drag pan; every shortcut is listed in Settings.
 - **Enhance**: the library flags low-res items and upscales + sharpens them locally (classical resampling, not generative AI), saving a new `-HD` file and keeping the original. On top of Lanczos and unsharp masking it now does iterative back-projection and de-fringing, so edges look tighter and halos are less visible.
-- **Library**: click to copy, reveal in folder, delete (to trash) — with a 3-second “Undo” prompt.
-- **SVG Library / SVG Canvas**: layered SVGs live in their own SVG library. In the SVG canvas you can show/hide, move, scale, rotate and fade each layer, and export any single layer as a transparent PNG back into the element library.
+- **Library**: click to copy, reveal in folder, delete (to trash) — with a 3-second “Undo” prompt, and a one-click “Clear” (also undoable).
+- **SVG Library / SVG Canvas**: layered SVGs live in their own SVG library. In the SVG canvas you can show/hide, move, scale, rotate and fade each layer, and export any single layer as a transparent PNG back into the element library. Marquee-select several layers, delete them together, drag the corners to scale, the top dot to rotate, and use the middle button to pan.
 - **Link with the “小剪动画” video editor**: saved elements show up in its sticker library.
-- **Drag images in**: drop an image from the desktop onto any page — the Extract page splits it, the Board takes it as a material (the first one becomes the background), the Library stores it, and the SVG Library treats it as an SVG.
+- **Drag images in**: drop an image from the desktop onto the working area, or straight onto a rail button — “Extract” splits it, “Library” stores it, “Board” takes it as a material, “SVG Library / SVG Canvas” treat it as SVG.
 - Lives in the tray, optional launch at login, notification after saving (click it to open the library).
 - 简体中文 / English, light / dark / system theme.
 
 ## Download
 
-Get the file for your system from [Releases](https://github.com/ijijv/PixPeel/releases):
+Get the file for your system from [Releases](https://github.com/lertone/PixPeel/releases):
 
 | System | File | Notes |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ Get the file for your system from [Releases](https://github.com/ijijv/PixPeel/re
 Each release includes `SHA256SUMS.txt` to verify downloads.
 
 There is also a companion web animation editor, “小剪动画” — download it on its own, it works without installing PixPeel:
-[xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html).
+[xiaoji-animation.html](https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html).
 
 **Upgrading**: just run the new installer; it replaces the old version and keeps your settings and saved elements.
 
@@ -74,7 +74,7 @@ Elements are saved to `Pictures/PixPeel` by default (changeable).
 
 “小剪动画” is a separate companion tool (a local animation editor that runs in the browser) — it is a different program from PixPeel. You only need this step if you want to make animations with it; if all you want is splitting images into transparent stickers, ignore it entirely.
 
-1. Download [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html) — that is “小剪动画”, a single self-contained web page; double-click to open, nothing to install.
+1. Download [xiaoji-animation.html](https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html) — that is “小剪动画”, a single self-contained web page; double-click to open, nothing to install.
 2. In PixPeel settings make sure “Let the editor read the library” is on (`127.0.0.1:17652`, this computer only).
 3. Open the **locally downloaded xiaoji-animation.html**, go to “贴纸” on the left and click “Connect PixPeel desktop”.
 4. Newly saved elements then appear automatically. You can also tick “自动同步” so anything you save in the desktop app lands in the sticker list right away.

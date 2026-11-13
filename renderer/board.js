@@ -4,7 +4,7 @@ const Board = (() => {
   const B = {
     W: 1080, H: 1080, bg: 'transparent', layers: [], sel: null, seq: 1,
     zoom: 0.5, px: 0, py: 0, fmt: 'png', sizeTouched: false,
-    lang: '', mounted: false, fitted: false, space: false, mode: null
+    lang: '', mounted: false, fitted: false, space: false, mode: null, multi: new Set()
   };
   const PRESETS = [['1080x1080', '1:1 · 1080×1080'], ['1920x1080', '16:9 · 1920×1080'], ['1080x1920', '9:16 · 1080×1920'],
   ['1600x1200', '4:3 · 1600×1200'], ['1200x1600', '3:4 · 1200×1600'], ['512x512', '512×512'], ['2480x3508', 'A4 · 2480×3508']];
@@ -13,6 +13,8 @@ const Board = (() => {
   const cache = new Map();   // 素材 rel → Image
   const isOn = () => { const v = $('#v-board'); return !!(v && v.classList.contains('on')); };
   const sel = () => B.layers.find(l => l.id === B.sel) || null;
+  /** 当前选中的图层（多选时返回全部，没多选就返回主选中的那个） */
+  const sels = () => { if (B.multi.size) return B.layers.filter(l => B.multi.has(l.id)); const s = sel(); return s ? [s] : []; };
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#52e3bd';
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -57,7 +59,9 @@ const Board = (() => {
           <span>${t('bdSize')}</span><input id="bdScl" type="number" min="2" max="5000" step="1">%
           <button class="btn sm" id="bdR90" title="${t('bdRot90')}">⟳ 90°</button>
           <button class="btn sm" id="bdUp" title="${t('bdUp')}">↑</button><button class="btn sm" id="bdDn" title="${t('bdDown')}">↓</button>
-          <button class="btn sm danger" id="bdDel" title="${t('bdDelete')} (Del)">${t('bdDelete')}</button></div>
+          <button class="btn sm danger" id="bdDel" title="${t('bdDelete')} (Del)">${t('bdDelete')}</button>
+          <button class="btn sm danger" id="bdClear" title="${t('bdClearAll')}">${t('bdClearAll')}</button>
+          <span class="dim" id="bdSelN"></span></div>
         <span class="sp"></span><span class="bd-hint">${t('bdPan')}</span>
         <div class="bd-g"><button class="btn sm" id="bdZo" title="${t('bdZoomOut')}">−</button><b id="bdZl" class="bd-zl">50%</b><button class="btn sm" id="bdZi" title="${t('bdZoomIn')}">+</button>
           <button class="btn sm" id="bdFit">${t('bdFit')}</button><select id="bdZp" title="${t('zoomMode')}"><option value="">${t('zoomMode')}</option><option value="fit">${t('bdFit')} (0)</option><option value="0.25">25%</option><option value="0.5">50%</option><option value="1">100% (1)</option><option value="2">200%</option><option value="4">400%</option><option value="sel">${t('zoomSel')}</option></select></div>
@@ -83,6 +87,7 @@ const Board = (() => {
     $('#bdScl').onchange = (e) => { const l = sel(); if (!l) return; act(() => { l.s = clamp((+e.target.value || 100) / 100, 0.02, 50); draw(); }); };
     $('#bdR90').onclick = () => { const l = sel(); if (l) act(() => { l.r += Math.PI / 2; draw(); tools(); }); };
     $('#bdUp').onclick = () => order(1); $('#bdDn').onclick = () => order(-1); $('#bdDel').onclick = del;
+    $('#bdClear').onclick = clearAll;
     $('#bdZi').onclick = () => zoomAt(1.25); $('#bdZo').onclick = () => zoomAt(1 / 1.25);
     $('#bdFit').onclick = fit;
     $('#bdZp').onchange = (e) => { const v = e.target.value; e.target.value = ''; if (v === 'fit') fit(); else if (v === 'sel') zoomSel(); else if (v) zoomTo(+v); };
@@ -150,20 +155,45 @@ const Board = (() => {
     B.layers.push(l); B.sel = l.id; draw(); tools();
   }
   function del() {
-    const l = sel(); if (!l) return;
-    const idx = B.layers.indexOf(l);
-    act(() => { B.layers = B.layers.filter(x => x !== l); B.sel = null; draw(); tools(); });
+    const arr = sels(); if (!arr.length) return;
+    const idxs = arr.map(l => B.layers.indexOf(l)).sort((a, b) => a - b);
+    act(() => { B.layers = B.layers.filter(x => !arr.includes(x)); B.sel = null; B.multi.clear(); draw(); tools(); });
     undoToast(t('delUndoLayer'), {
-      undo: () => { B.layers.splice(Math.min(idx, B.layers.length), 0, l); B.sel = l.id; draw(); tools(); }
+      undo: () => {
+        idxs.slice().reverse().forEach((i, k) => { const L = arr[arr.length - 1 - k]; if (L) { B.layers.splice(Math.min(i, B.layers.length), 0, L); B.sel = L.id; B.multi.add(L.id); } });
+        draw(); tools();
+      }
     });
   }
   function dup() {
-    const l = sel(); if (!l) return;
-    act(() => { const c = Object.assign({}, l, { id: B.seq++, x: l.x + 24, y: l.y + 24, name: l.name }); B.layers.splice(B.layers.indexOf(l) + 1, 0, c); B.sel = c.id; draw(); tools(); });
+    const arr = sels(); if (!arr.length) return;
+    act(() => {
+      for (const l of arr) {
+        const c = Object.assign({}, l, { id: B.seq++, x: l.x + 24, y: l.y + 24, name: l.name });
+        B.layers.splice(B.layers.indexOf(l) + 1, 0, c);
+      }
+      B.sel = arr[arr.length - 1].id; draw(); tools();
+    });
   }
   function order(d) {
-    const l = sel(); if (!l) return; const i = B.layers.indexOf(l), j = i + d;
-    if (j < 0 || j >= B.layers.length) return; act(() => { [B.layers[i], B.layers[j]] = [B.layers[j], B.layers[i]]; draw(); });
+    const arr = sels(); if (!arr.length) return;
+    act(() => {
+      for (const l of arr) {
+        const i = B.layers.indexOf(l), j = i + d;
+        if (j < 0 || j >= B.layers.length) continue;
+        [B.layers[i], B.layers[j]] = [B.layers[j], B.layers[i]];
+      }
+      draw();
+    });
+  }
+  /** 清空画布（可撤回） */
+  function clearAll() {
+    if (!B.layers.length) return;
+    const all = B.layers.slice();
+    act(() => { B.layers = []; B.sel = null; B.multi.clear(); draw(); tools(); });
+    undoToast(t('bdCleared'), {
+      undo: () => { B.layers = all.slice(); B.sel = all[0] && all[0].id; draw(); tools(); }
+    });
   }
   function tools() {
     const l = sel(); const on = !!l;
@@ -175,6 +205,8 @@ const Board = (() => {
       if (sc && document.activeElement !== sc) sc.value = Math.round(l.s * 100);
     } else { const an = $('#bdAng'), sc = $('#bdScl'); if (an) an.value = ''; if (sc) sc.value = ''; }
     const em = $('#bdEmpty'); if (em) em.style.display = B.layers.length ? 'none' : '';
+    const n = B.multi.size; const sn = $('#bdSelN'); if (sn) sn.textContent = n > 1 ? t('bdSelN', { n }) : '';
+    const dc = $('#bdDel'); if (dc) dc.textContent = n > 1 ? t('bdDeleteSel', { n }) : t('bdDelete');
   }
 
   /* ───────── 画布大小 / 背景 ───────── */
@@ -238,13 +270,21 @@ const Board = (() => {
     g.imageSmoothingQuality = 'high'; g.translate(X, Y); g.scale(z, z);
     for (const l of B.layers) drawLayer(g, l);
     g.restore();
-    const l = sel();
-    if (l) {
-      const { cs, top, rot } = corners(l), mint = css('--mint');
+    const list = sels(), mint = css('--mint');
+    for (const l of list) {
+      const { cs, top, rot } = corners(l);
       g.save(); g.lineWidth = 1.5; g.strokeStyle = mint; g.beginPath(); cs.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.stroke();
-      g.beginPath(); g.moveTo(top[0], top[1]); g.lineTo(rot[0], rot[1]); g.stroke();
-      g.fillStyle = '#fff'; for (const p of cs) { g.beginPath(); g.rect(p[0] - 5, p[1] - 5, 10, 10); g.fill(); g.stroke(); }
-      g.beginPath(); g.arc(rot[0], rot[1], 6, 0, 7); g.fill(); g.stroke(); g.restore();
+      if (list.length === 1) {
+        g.beginPath(); g.moveTo(top[0], top[1]); g.lineTo(rot[0], rot[1]); g.stroke();
+        g.fillStyle = '#fff'; for (const p of cs) { g.beginPath(); g.rect(p[0] - 5, p[1] - 5, 10, 10); g.fill(); g.stroke(); }
+        g.beginPath(); g.arc(rot[0], rot[1], 6, 0, 7); g.fill(); g.stroke();
+      }
+      g.restore();
+    }
+    if (B.mode && B.mode.k === 'marquee') {
+      const m = B.mode, x = Math.min(m.sx, m.cx), y = Math.min(m.sy, m.cy), w = Math.abs(m.cx - m.sx), h = Math.abs(m.cy - m.sy);
+      g.save(); g.fillStyle = 'rgba(82,227,189,.14)'; g.strokeStyle = mint; g.lineWidth = 1; g.setLineDash([4, 3]);
+      g.fillRect(x, y, w, h); g.strokeRect(x, y, w, h); g.restore();
     }
     $('#bdZl').textContent = Math.round(z * 100) + '%';
   }
@@ -287,8 +327,18 @@ const Board = (() => {
       return;
     }
     const d = toDoc(sx, sy); const hit = hitLayer(d, false) || hitLayer(d, true);
-    if (hit) { B.sel = hit.id; B.mode = { k: 'move', ox: hit.x - d[0], oy: hit.y - d[1], b: b0 }; draw(); tools(); }
-    else { B.sel = null; B.mode = { k: 'pan', sx, sy, px: B.px, py: B.py }; cv.style.cursor = 'grabbing'; draw(); tools(); }
+    if (hit) {
+      if (e.ctrlKey || e.metaKey) { B.multi.has(hit.id) ? B.multi.delete(hit.id) : B.multi.add(hit.id); B.sel = hit.id; }
+      else if (!B.multi.has(hit.id)) { B.multi.clear(); B.multi.add(hit.id); B.sel = hit.id; }
+      B.mode = { k: 'move', d0: d[0], d1: d[1], b: b0, base: sels().map(x => ({ l: x, x: x.x, y: x.y })) };
+      draw(); tools();
+    }
+    else {
+      /* 左键拖空白 = 框选；中键 / 空格才是平移 */
+      if (!e.shiftKey) { B.multi.clear(); B.sel = null; }
+      B.mode = { k: 'marquee', sx, sy, cx: sx, cy: sy, b: b0, add: e.shiftKey };
+      draw(); tools();
+    }
   }
   function move(e) {
     const [sx, sy] = pos(e), m = B.mode, l = sel(), cv = $('#bdCv');
@@ -297,15 +347,35 @@ const Board = (() => {
       cv.style.cursor = B.space ? 'grab' : hd === 'rot' ? 'grab' : hd === 'scale' ? 'nwse-resize' : (hitLayer(toDoc(sx, sy), false) ? 'move' : 'default'); return;
     }
     if (m.k === 'pan') { B.px = m.px + sx - m.sx; B.py = m.py + sy - m.sy; draw(); }
+    else if (m.k === 'marquee') { m.cx = sx; m.cy = sy; draw(); }
     else if (!l) return;
-    else if (m.k === 'move') { const d = toDoc(sx, sy); l.x = d[0] + m.ox; l.y = d[1] + m.oy; draw(); }
-    else if (m.k === 'scale') { l.s = clamp(m.s0 * Math.hypot(sx - m.cx, sy - m.cy) / m.d0, 0.02, 50); draw(); tools(); }
+    else if (m.k === 'move') { const d = toDoc(sx, sy); for (const b of m.base) { b.l.x = b.x + (d[0] - m.d0); b.l.y = b.y + (d[1] - m.d1); } draw(); }
+    else if (m.k === 'scale') { const s = clamp(m.s0 * Math.hypot(sx - m.cx, sy - m.cy) / m.d0, 0.02, 50); for (const X of sels()) X.s = s; draw(); tools(); }
     else if (m.k === 'rot') {
       let r = m.r0 + Math.atan2(sy - m.cy, sx - m.cx) - m.a0;
-      if (e.shiftKey) r = Math.round(r / (Math.PI / 12)) * (Math.PI / 12); l.r = r; draw(); tools();
+      if (e.shiftKey) r = Math.round(r / (Math.PI / 12)) * (Math.PI / 12);
+      for (const X of sels()) X.r = r; draw(); tools();
     }
   }
-  function up(e) { const m = B.mode; B.mode = null; if (m && m.b) hpush(m.b); try { $('#bdCv').releasePointerCapture(e.pointerId); } catch (_) { } $('#bdCv').style.cursor = B.space ? 'grab' : 'default'; }
+  function up(e) {
+    const m = B.mode; B.mode = null;
+    if (m && m.k === 'marquee') {
+      const x0 = Math.min(m.sx, m.cx), x1 = Math.max(m.sx, m.cx), y0 = Math.min(m.sy, m.cy), y1 = Math.max(m.sy, m.cy);
+      if (Math.abs(x1 - x0) > 4 || Math.abs(y1 - y0) > 4) {
+        if (!m.add) B.multi.clear();
+        for (const l of B.layers) {
+          const { cs } = corners(l);
+          const lx = Math.min(...cs.map(p => p[0])), hx = Math.max(...cs.map(p => p[0]));
+          const ly = Math.min(...cs.map(p => p[1])), hy = Math.max(...cs.map(p => p[1]));
+          if (hx >= x0 && lx <= x1 && hy >= y0 && ly <= y1) { B.multi.add(l.id); B.sel = l.id; }
+        }
+      }
+      draw(); tools();
+    }
+    else if (m && m.b) hpush(m.b);
+    try { $('#bdCv').releasePointerCapture(e.pointerId); } catch (_) { }
+    $('#bdCv').style.cursor = B.space ? 'grab' : 'default';
+  }
 
   document.addEventListener('keydown', (e) => {
     if (!isOn()) return;
@@ -321,7 +391,7 @@ const Board = (() => {
     if (!mod && (K === '[' || K === ']') && l) { order(K === ']' ? 1 : -1); eat(); return; }
     if (e.key === ' ') { B.space = true; $('#bdCv').style.cursor = 'grab'; e.preventDefault(); e.stopPropagation(); return; }
     if ((e.key === 'Delete' || e.key === 'Backspace') && l) { del(); e.preventDefault(); e.stopPropagation(); }
-    else if (e.key === 'Escape' && l) { B.sel = null; draw(); tools(); e.stopPropagation(); }
+    else if (e.key === 'Escape' && l) { B.sel = null; B.multi.clear(); draw(); tools(); e.stopPropagation(); }
     else if (l && /^Arrow/.test(e.key)) {
       const k = e.shiftKey ? 10 : 1; act(() => { if (e.key === 'ArrowLeft') l.x -= k; if (e.key === 'ArrowRight') l.x += k; if (e.key === 'ArrowUp') l.y -= k; if (e.key === 'ArrowDown') l.y += k; draw(); }, 'nudge');
       e.preventDefault(); e.stopPropagation();
@@ -365,5 +435,5 @@ const Board = (() => {
     requestAnimationFrame(() => { if (!B.fitted) fit(); else draw(); tools(); });
   }
   function select(id) { B.sel = id; draw(); tools(); }
-  return { enter, state: B, draw, addLayer, setSize, fit, select, undo, redo, dup, zoomSel, imgFromBlob, addMat };
+  return { enter, state: B, draw, addLayer, addFile, setSize, fit, select, undo, redo, dup, zoomSel, imgFromBlob, addMat };
 })();

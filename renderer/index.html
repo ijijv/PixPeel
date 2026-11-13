@@ -2,7 +2,10 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: file:; style-src 'self' 'unsafe-inline'; script-src 'self' blob: 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://fastly.jsdelivr.net https://unpkg.com; worker-src 'self' blob:; connect-src 'self' data: blob: https:; media-src 'self'">
 <title>PixPeel</title><link rel="stylesheet" href="style.css"></head><body>
 <aside class="rail">
-  <div class="logo" title="PixPeel"><img src="icon.png" alt="PixPeel"></div>
+  <div class="logo" title="PixPeel">
+    <svg class="logring" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="25" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="7 6" stroke-linecap="round"/></svg>
+    <img src="icon.png" alt="PixPeel">
+  </div>
   <nav id="nav">
     <button data-v="edit" class="on"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" stroke-dasharray="3 3"/><path d="M9 15l2-6 4 3-3 1 2 3"/></svg><span data-i18n="navEdit">拆元素</span></button>
     <button data-v="lib"><svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg><span data-i18n="navLib">素材库</span></button>

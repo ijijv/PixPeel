@@ -1,11 +1,12 @@
 /* PixPeel · SVG 库 + SVG 画布
  *
- * SVG 库：单独存 .svg 文件（拆元素页「分层 SVG」导出的也收进来）
+ * SVG 库：单独存 .svg 文件（拆元素页导出的分层 SVG 也收进来）
  * SVG 画布：把 SVG 里的每一层单独拎出来改——显示/隐藏、移动、缩放、旋转、改不透明度、删除、改名
+ * 交互和「画板」一致：左键点选 / 拖动 / 框选多选，中键或空格拖动平移，四角缩放、顶部圆点旋转。
  *
  * 和「素材库」「画板」的关系：
  *   素材库放的是透明底 PNG 贴纸（小剪动画就是读它），SVG 库是另一套文件，不混在一起；
- *   两边靠「转换」打通：SVG 画布里可以把某一层一键导成 PNG 存进素材库，
+ *   两边靠「转换」打通：SVG 画布里可以把某一层一键导成透明 PNG 存进素材库，
  *   素材库里的 PNG 也能拖进画板当图层。这样两边都保持各自的强项，不互相将就。
  */
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -33,7 +34,7 @@ const SvgLib = (() => {
     const groups = {};
     for (const it of list) { const g = it.group || t('noGroup'); (groups[g] = groups[g] || []).push(it); }
     el.innerHTML = `<div class="page"><div class="libHead"><h2 class="pt">${t('svgLibTitle')}</h2><span class="sp"></span>
-      <button class="btn" id="svgImp">${t('svgImpBtn')}</button><button class="btn ghost" id="svgRef">${t('libRefresh')}</button></div>
+      <button class="btn" id="svgImp">${t('svgImpBtn')}</button><button class="btn ghost" id="svgRef">${t('libRefresh')}</button><button class="btn danger" id="svgClear">${t('libClear')}</button></div>
       <p class="lead">${t('svgLibLead', { n: list.length })}</p>
       ${list.length ? Object.entries(groups).map(([g, items]) => `<div class="gh"><b>${esc(g)}</b><span>${t('nItems', { n: items.length })}</span></div>
         <div class="grid">${items.map(it => `<div class="cell" data-rel="${esc(it.rel)}">
@@ -45,6 +46,7 @@ const SvgLib = (() => {
         : `<div class="blank"><b>${t('svgLibEmptyT')}</b><span>${t('svgLibEmptyD')}</span></div>`}</div>`;
     $('#svgImp').onclick = pick;
     $('#svgRef').onclick = render;
+    $('#svgClear').onclick = () => clearAllPending('#v-svglib', 'libClearUndo', 'libCleared');
     el.onclick = async (e) => {
       const cell = e.target.closest('.cell'); if (!cell) return;
       const rel = cell.dataset.rel, b = e.target.closest('[data-act]');
@@ -78,14 +80,18 @@ const SvgLib = (() => {
       if (doc.querySelector('parsererror')) throw new Error('parse');
       const r = await api.saveSvg({ name: (f.name || 'svg').replace(/\.[^.]+$/, ''), data: new TextEncoder().encode(txt), group: '' });
       if (r && r.ok) { toast(t('svgImported')); render(); } else toast(t('saveFail'));
-    } catch (e) { toast(t('svgBad')); }
+    } catch (e) { console.error('SvgLib.importFile', e); toast(t('svgBad')); }
   }
   return { render, importFile, pick };
 })();
 
 /* ───────────────────────── SVG 画布 ───────────────────────── */
 const SvgCanvas = (() => {
-  const S = { name: '', w: 0, h: 0, svg: null, layers: [], sel: null, z: 1, x: 0, y: 0, fit: true, drag: null };
+  const S = {
+    name: '', w: 0, h: 0, svg: null, layers: [], sel: null, multi: new Set(),
+    z: 1, x: 0, y: 0, fit: true, mode: null, ov: null
+  };
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
   function parse(text) {
     const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
@@ -99,9 +105,18 @@ const SvgCanvas = (() => {
     if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) return { w: vb[2], h: vb[3] };
     const w = parseFloat(svg.getAttribute('width')) || 0, h = parseFloat(svg.getAttribute('height')) || 0;
     if (w > 0 && h > 0) return { w, h };
-    const bb = svg.getBBox ? svg.getBBox() : null;
-    return { w: (bb && bb.width) || 512, h: (bb && bb.height) || 512 };
+    return { w: 512, h: 512 };
   }
+  /* 图层内容在 SVG 基础坐标里的包围盒。
+   * getBBox 只有在元素已经排版后才准，所以每次都重新量，量不出来才用上一次的值。 */
+  function bbox(L) {
+    try {
+      const b = L.el.getBBox();
+      if (b && (b.width > 0 || b.height > 0)) { L.bb = { x: b.x, y: b.y, w: b.width, h: b.height }; return L.bb; }
+    } catch (e) { /* 不在文档里或者被隐藏了 */ }
+    return (L.bb || { x: 0, y: 0, w: 0, h: 0 });
+  }
+  function center(L) { const b = bbox(L); return { x: b.x + b.w / 2, y: b.y + b.h / 2 }; }
 
   function openSvg(svg, name) {
     S.svg = svg; S.name = name || 'svg';
@@ -109,7 +124,6 @@ const SvgCanvas = (() => {
     S.w = Math.max(1, Math.round(sz.w)); S.h = Math.max(1, Math.round(sz.h));
     if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${S.w} ${S.h}`);
     svg.setAttribute('width', S.w); svg.setAttribute('height', S.h);
-    /* 顶层可绘制元素各自包一层 <g>，这样每一层都能单独移动/缩放/隐藏 */
     const skip = new Set(['defs', 'title', 'desc', 'style', 'metadata', 'script']);
     const kids = [...svg.childNodes].filter(n => n.nodeType === 1 && !skip.has(n.nodeName.toLowerCase()));
     S.layers = [];
@@ -119,9 +133,9 @@ const SvgCanvas = (() => {
       k.parentNode.insertBefore(g, k);
       g.appendChild(k);
       const nm = k.id || k.getAttribute('data-name') || k.nodeName;
-      S.layers.push({ g, el: k, name: nm, x: 0, y: 0, s: 1, r: 0, op: 1, vis: true });
+      S.layers.push({ g, el: k, name: nm, x: 0, y: 0, s: 1, r: 0, op: 1, vis: true, bb: null });
     }
-    S.sel = null; S.fit = true;
+    S.sel = null; S.multi.clear(); S.fit = true;
     mount();
   }
   async function openRel(rel) {
@@ -140,12 +154,19 @@ const SvgCanvas = (() => {
     } catch (e) { console.error('SvgCanvas.openFile', e); toast(t('svgBad')); }
   }
 
+  /* 变换：绕「图层自身内容的中心」旋转缩放，而不是绕画布原点 */
   function apply(L) {
-    L.g.setAttribute('transform', `translate(${L.x} ${L.y}) rotate(${L.r}) scale(${L.s})`);
+    const c = center(L);
+    L.g.setAttribute('transform', `translate(${L.x} ${L.y}) translate(${c.x} ${c.y}) rotate(${L.r}) scale(${L.s}) translate(${-c.x} ${-c.y})`);
     L.g.setAttribute('opacity', L.op);
     L.g.style.display = L.vis ? '' : 'none';
   }
   function sel() { return S.layers.find(l => l === S.sel) || null; }
+  /** 当前选中的图层（多选时返回全部） */
+  function sels() {
+    if (S.multi.size) return S.layers.filter(l => S.multi.has(l));
+    const s = sel(); return s ? [s] : [];
+  }
 
   function mount() {
     const host = $('#v-svgcanvas');
@@ -174,9 +195,19 @@ const SvgCanvas = (() => {
     svg.removeAttribute('style'); svg.removeAttribute('width'); svg.removeAttribute('height');
     svg.setAttribute('class', 'svSvg'); svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     st.appendChild(svg);
-    // 重新把层挂到新节点上（importNode 之后旧引用失效）
+    S.svg = svg;                       // 指向真正挂在页面上的这份，后面调层级才是对的
+    /* 覆盖层：画选中框和缩放/旋转手柄 */
+    const ov = document.createElementNS(SVGNS, 'svg');
+    ov.setAttribute('class', 'svOv'); ov.setAttribute('preserveAspectRatio', 'none');
+    st.appendChild(ov); S.ov = ov;
+    /* 重新把层挂到新节点上（importNode 之后旧引用失效：g 和里面的原始节点都要换成副本里的） */
     const gs = [...svg.querySelectorAll('g[data-sg]')];
-    S.layers.forEach((L, i) => { if (gs[i]) { L.g = gs[i]; apply(L); } });
+    S.layers.forEach((L, i) => {
+      if (!gs[i]) return;
+      L.g = gs[i];
+      if (gs[i].firstElementChild) L.el = gs[i].firstElementChild;
+      L.bb = null; apply(L);
+    });
     $('#svgName').textContent = S.name + '  ' + S.w + '×' + S.h;
     $('#svgImp').onclick = () => SvgLib.pick();
     $('#svgSaveLib').onclick = saveToLib;
@@ -191,13 +222,21 @@ const SvgCanvas = (() => {
     st.addEventListener('pointermove', onMove);
     st.addEventListener('pointerup', onUp);
     st.addEventListener('pointercancel', onUp);
+    st.addEventListener('contextmenu', (e) => e.preventDefault());
     list(); applyView(); fit();
+    /* 排版完成后再量一次各层的包围盒（getBBox 排版前不准，旋转中心会算错） */
+    requestAnimationFrame(() => {
+      S.layers.forEach(L => { L.bb = null; apply(L); });
+      drawOverlay();
+    });
   }
 
+  /* ───────── 视图 ───────── */
   function applyView() {
     const svg = $('#v-svgcanvas .svSvg'); if (!svg) return;
     Object.assign(svg.style, { position: 'absolute', left: S.x + 'px', top: S.y + 'px', width: S.w * S.z + 'px', height: S.h * S.z + 'px' });
     const l = $('#svZl'); if (l) l.textContent = Math.round(S.z * 100) + '%';
+    drawOverlay();
   }
   function fit() {
     const st = $('#svStage'); if (!st || !S.w) return;
@@ -211,48 +250,183 @@ const SvgCanvas = (() => {
     const r = st.getBoundingClientRect();
     if (cx == null) { cx = r.width / 2; cy = r.height / 2; }
     const ix = (cx - S.x) / S.z, iy = (cy - S.y) / S.z;
-    S.z = Math.max(0.05, Math.min(16, S.z * k));
+    S.z = clamp(S.z * k, 0.05, 16);
     S.x = cx - ix * S.z; S.y = cy - iy * S.z; S.fit = false; applyView();
   }
   function toSvg(clientX, clientY) {
     const st = $('#svStage'), r = st.getBoundingClientRect();
     return { x: (clientX - r.left - S.x) / S.z, y: (clientY - r.top - S.y) / S.z };
   }
-  function onDown(e) {
-    if (e.button !== 0) return;
-    const g = e.target.closest ? e.target.closest('g[data-sg]') : null;
-    if (!g) { S.sel = null; list(); return; }
-    const L = S.layers.find(x => x.g === g); if (!L) return;
-    S.sel = L; list();
-    const p = toSvg(e.clientX, e.clientY);
-    S.drag = { L, ox: p.x - L.x, oy: p.y - L.y, moved: false };
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) { }
-  }
-  function onMove(e) {
-    if (!S.drag) return;
-    const p = toSvg(e.clientX, e.clientY);
-    S.drag.L.x = p.x - S.drag.ox; S.drag.L.y = p.y - S.drag.oy;
-    S.drag.moved = true; apply(S.drag.L); prop();
-  }
-  function onUp(e) {
-    if (!S.drag) return;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) { }
-    S.drag = null;
+  function stagePos(e) {
+    const st = $('#svStage'), r = st.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  /* 图层在屏幕上的四个角（用来画框和做命中判断） */
+  function corners(L) {
+    const b = bbox(L), c = center(L);
+    const rad = L.r * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad);
+    const raw = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
+    return raw.map(([px, py]) => {
+      const ux = (px - c.x) * L.s, uy = (py - c.y) * L.s;
+      const rx = ux * cs - uy * sn, ry = ux * sn + uy * cs;
+      return { x: S.x + (c.x + rx + L.x) * S.z, y: S.y + (c.y + ry + L.y) * S.z };
+    });
+  }
+  function rotHandle(cs) {
+    const mid = { x: (cs[0].x + cs[1].x) / 2, y: (cs[0].y + cs[1].y) / 2 };
+    return { x: mid.x, y: mid.y - 26 };
+  }
+
+  /* 覆盖层：选中框 + 四角缩放柄 + 顶部旋转柄 + 框选矩形 */
+  function drawOverlay() {
+    const ov = S.ov; if (!ov) return;
+    const st = $('#svStage'); if (!st) return;
+    ov.setAttribute('viewBox', `0 0 ${st.clientWidth} ${st.clientHeight}`);
+    ov.setAttribute('width', st.clientWidth); ov.setAttribute('height', st.clientHeight);
+    let h = '';
+    const list = sels();
+    for (const L of list) {
+      const cs = corners(L);
+      if (!cs[0]) continue;
+      const d = 'M' + cs.map(p => p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join('L') + 'Z';
+      h += `<path d="${d}" fill="none" stroke="#52e3bd" stroke-width="1.5"/>`;
+      if (list.length === 1) {
+        for (const p of cs) h += `<rect x="${(p.x - 5).toFixed(1)}" y="${(p.y - 5).toFixed(1)}" width="10" height="10" fill="#fff" stroke="#52e3bd" stroke-width="1.5"/>`;
+        const rh = rotHandle(cs);
+        h += `<line x1="${cs[0].x.toFixed(1)}" y1="${cs[0].y.toFixed(1)}" x2="${rh.x.toFixed(1)}" y2="${rh.y.toFixed(1)}" stroke="#52e3bd" stroke-width="1.5"/>`;
+        h += `<circle cx="${rh.x.toFixed(1)}" cy="${rh.y.toFixed(1)}" r="6" fill="#fff" stroke="#52e3bd" stroke-width="1.5"/>`;
+      }
+    }
+    if (S.mode && S.mode.k === 'marquee') {
+      const m = S.mode;
+      h += `<rect x="${Math.min(m.sx, m.cx).toFixed(1)}" y="${Math.min(m.sy, m.cy).toFixed(1)}" width="${Math.abs(m.cx - m.sx).toFixed(1)}" height="${Math.abs(m.cy - m.sy).toFixed(1)}" fill="rgba(82,227,189,.14)" stroke="#52e3bd" stroke-width="1" stroke-dasharray="4 3"/>`;
+    }
+    ov.innerHTML = h;
+  }
+
+  /* ───────── 交互 ───────── */
+  function hitHandle(sp) {
+    const list = sels(); if (list.length !== 1) return null;
+    const L = list[0], cs = corners(L);
+    const rh = rotHandle(cs);
+    if (Math.hypot(sp.x - rh.x, sp.y - rh.y) <= 10) return 'rot';
+    for (let i = 0; i < 4; i++) if (Math.abs(sp.x - cs[i].x) <= 9 && Math.abs(sp.y - cs[i].y) <= 9) return 'scale';
+    return null;
+  }
+  function hitLayer(sp) {
+    const list = [...S.layers].reverse();
+    for (const L of list) {
+      if (!L.vis) continue;
+      const cs = corners(L);
+      if (!cs[0]) continue;
+      let inside = false;
+      for (let i = 0, j = 3; i < 4; j = i++) {
+        const a = cs[i], b = cs[j];
+        if ((a.y > sp.y) !== (b.y > sp.y) && sp.x < (b.x - a.x) * (sp.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+      }
+      if (inside) return L;
+    }
+    return null;
+  }
+  function onDown(e) {
+    const st = $('#svStage'); if (!st) return;
+    const sp = stagePos(e);
+    try { st.setPointerCapture(e.pointerId); } catch (_) { }
+    /* 中键 / 右键：平移画布 */
+    if (e.button === 1 || e.button === 2) { S.mode = { k: 'pan', sx: sp.x, sy: sp.y, x0: S.x, y0: S.y }; st.style.cursor = 'grabbing'; return; }
+    const hd = hitHandle(sp);
+    if (hd) {
+      const L = sels()[0], c = center(L);
+      const cc = { x: S.x + (c.x + L.x) * S.z, y: S.y + (c.y + L.y) * S.z };
+      S.mode = hd === 'rot'
+        ? { k: 'rot', L, a0: Math.atan2(sp.y - cc.y, sp.x - cc.x), r0: L.r, cc }
+        : { k: 'scale', L, d0: Math.hypot(sp.x - cc.x, sp.y - cc.y) || 1, s0: L.s, cc };
+      return;
+    }
+    const hit = hitLayer(sp);
+    if (hit) {
+      if (e.ctrlKey || e.metaKey) { S.multi.has(hit) ? S.multi.delete(hit) : S.multi.add(hit); }
+      else if (!S.multi.has(hit)) { S.multi.clear(); S.multi.add(hit); }
+      S.sel = hit;
+      S.mode = { k: 'move', L: hit, ox: hit.x - toSvg(e.clientX, e.clientY).x, oy: hit.y - toSvg(e.clientX, e.clientY).y };
+      list(); drawOverlay(); return;
+    }
+    /* 点空白：清空选择并开始框选 */
+    if (!e.shiftKey) { S.multi.clear(); S.sel = null; }
+    S.mode = { k: 'marquee', sx: sp.x, sy: sp.y, cx: sp.x, cy: sp.y, add: e.shiftKey };
+    list(); drawOverlay();
+  }
+  function onMove(e) {
+    const st = $('#svStage'); if (!st) return;
+    const sp = stagePos(e), m = S.mode;
+    if (!m) {
+      const hd = hitHandle(sp);
+      st.style.cursor = hd === 'rot' ? 'grab' : hd === 'scale' ? 'nwse-resize' : (hitLayer(sp) ? 'move' : 'default');
+      return;
+    }
+    if (m.k === 'pan') { S.x = m.x0 + sp.x - m.sx; S.y = m.y0 + sp.y - m.sy; S.fit = false; applyView(); return; }
+    if (m.k === 'marquee') { m.cx = sp.x; m.cy = sp.y; drawOverlay(); return; }
+    if (m.k === 'move') {
+      const p = toSvg(e.clientX, e.clientY);
+      const dx = p.x - (m.L.x - m.ox), dy = p.y - (m.L.y - m.oy);
+      const list2 = sels();
+      for (const L of list2) { L.x = m.L.x + dx; L.y = m.L.y + dy; apply(L); }
+      drawOverlay(); return;
+    }
+    if (m.k === 'scale') {
+      const d = Math.hypot(sp.x - m.cc.x, sp.y - m.cc.y);
+      const s = clamp(m.s0 * d / m.d0, 0.02, 50);
+      for (const L of sels()) { L.s = s; apply(L); }
+      prop(); drawOverlay(); return;
+    }
+    if (m.k === 'rot') {
+      const a = Math.atan2(sp.y - m.cc.y, sp.x - m.cc.x);
+      let r = m.r0 + (a - m.a0) * 180 / Math.PI;
+      if (e.shiftKey) r = Math.round(r / 15) * 15;
+      for (const L of sels()) { L.r = r; apply(L); }
+      prop(); drawOverlay(); return;
+    }
+  }
+  function onUp(e) {
+    const st = $('#svStage'); if (!st) return;
+    try { st.releasePointerCapture(e.pointerId); } catch (_) { }
+    const m = S.mode; S.mode = null; st.style.cursor = 'default';
+    if (m && m.k === 'marquee') {
+      const x0 = Math.min(m.sx, m.cx), x1 = Math.max(m.sx, m.cx), y0 = Math.min(m.sy, m.cy), y1 = Math.max(m.sy, m.cy);
+      if (Math.abs(x1 - x0) > 4 || Math.abs(y1 - y0) > 4) {
+        if (!m.add) S.multi.clear();
+        for (const L of S.layers) {
+          if (!L.vis) continue;
+          const cs = corners(L); if (!cs[0]) continue;
+          const lx = Math.min(...cs.map(p => p.x)), hx = Math.max(...cs.map(p => p.x));
+          const ly = Math.min(...cs.map(p => p.y)), hy = Math.max(...cs.map(p => p.y));
+          if (hx >= x0 && lx <= x1 && hy >= y0 && ly <= y1) S.multi.add(L);
+        }
+        const arr = [...S.multi];
+        if (arr.length) S.sel = arr[arr.length - 1];
+      }
+      list(); prop(); drawOverlay();
+    } else if (m) { prop(); drawOverlay(); }
+  }
+
+  /* ───────── 图层列表 ───────── */
   function list() {
     const el = $('#svList'); if (!el) return;
-    $('#svCount').textContent = t('nItems', { n: S.layers.length });
+    $('#svCount').textContent = S.multi.size > 1 ? t('svgSelN', { n: S.multi.size }) : t('nItems', { n: S.layers.length });
     el.innerHTML = S.layers.length ? S.layers.map((L, i) =>
-      `<div class="svRow${L === S.sel ? ' sel' : ''}" data-i="${i}">
+      `<div class="svRow${S.multi.has(L) ? ' sel' : ''}" data-i="${i}">
         <input type="checkbox" data-vis="${i}" ${L.vis ? 'checked' : ''}>
         <span class="svNm" title="${esc(L.name)}">${esc(L.name)}</span>
-        <span class="dim">${i + 1}</span></div>`).join('') : `<div class="tip">${t('svgNoLayer')}</div>`;
+        <span class="dim">${i + 1}</span></div>`).join('')
+      : `<div class="tip">${t('svgNoLayer')}</div>`;
     el.onclick = (e) => {
       const row = e.target.closest('.svRow'); if (!row) return;
       const i = +row.dataset.i, L = S.layers[i]; if (!L) return;
-      if (e.target.matches('input[data-vis]')) { L.vis = e.target.checked; apply(L); return; }
-      S.sel = L; list();
+      if (e.target.matches('input[data-vis]')) { L.vis = e.target.checked; apply(L); drawOverlay(); return; }
+      if (e.ctrlKey || e.metaKey) { S.multi.has(L) ? S.multi.delete(L) : S.multi.add(L); }
+      else { S.multi.clear(); S.multi.add(L); }
+      S.sel = L; list(); prop(); drawOverlay();
     };
     el.ondblclick = (e) => {
       const row = e.target.closest('.svRow'); if (!row) return;
@@ -264,39 +438,89 @@ const SvgCanvas = (() => {
   }
   function prop() {
     const p = $('#svProp'); if (!p) return;
-    const L = sel();
-    if (!L) { p.innerHTML = `<div class="tip">${t('svgPickHint')}</div>`; return; }
-    p.innerHTML = `<div class="sv-p"><label class="fld"><span>${t('svgPosX')}</span><input type="number" data-p="x" value="${Math.round(L.x)}"></label>
+    const arr = sels();
+    if (!arr.length) { p.innerHTML = `<div class="tip">${t('svgPickHint')}</div>
+      <div class="sv-p"><button class="btn sm" id="svgClear">${t('svgClearAll')}</button></div>`; const c = $('#svgClear'); if (c) c.onclick = clearAll; return; }
+    const L = arr[0], many = arr.length > 1;
+    p.innerHTML = `<div class="sv-p"><div class="dim">${many ? t('svgSelN', { n: arr.length }) : esc(L.name)}</div></div>
+      <div class="sv-p"><label class="fld"><span>${t('svgPosX')}</span><input type="number" data-p="x" value="${Math.round(L.x)}"></label>
       <label class="fld"><span>${t('svgPosY')}</span><input type="number" data-p="y" value="${Math.round(L.y)}"></label></div>
       <div class="sv-p"><label class="fld"><span>${t('svgScale')}</span><input type="range" data-p="s" min="5" max="400" value="${Math.round(L.s * 100)}"><b>${Math.round(L.s * 100)}%</b></label>
       <label class="fld"><span>${t('svgRotate')}</span><input type="range" data-p="r" min="-180" max="180" value="${Math.round(L.r)}"><b>${Math.round(L.r)}°</b></label></div>
       <div class="sv-p"><label class="fld"><span>${t('svgOpacity')}</span><input type="range" data-p="op" min="0" max="100" value="${Math.round(L.op * 100)}"><b>${Math.round(L.op * 100)}%</b></label></div>
       <div class="sv-p"><button class="btn sm" id="svgFront">${t('svgFront')}</button><button class="btn sm" id="svgBack">${t('svgBack')}</button>
-      <button class="btn sm danger" id="svgDel">${t('svgDel')}</button></div>`;
+      <button class="btn sm danger" id="svgDel">${t('svgDelSel', { n: arr.length })}</button>
+      <button class="btn sm danger" id="svgClear">${t('svgClearAll')}</button></div>`;
     p.oninput = (e) => {
-      const k = e.target.dataset.p; if (!k || !L) return;
+      const k = e.target.dataset.p; if (!k) return;
       const v = parseFloat(e.target.value);
-      if (k === 'x') L.x = v; else if (k === 'y') L.y = v;
-      else if (k === 's') L.s = v / 100; else if (k === 'r') L.r = v; else if (k === 'op') L.op = v / 100;
-      const b = e.target.parentElement.querySelector('b'); if (b) b.textContent = k === 's' ? v + '%' : k === 'op' ? v + '%' : (k === 'r' ? v + '°' : v);
-      apply(L);
+      const b = e.target.parentElement.querySelector('b');
+      if (k === 'x' || k === 'y') { for (const X of arr) { X[k] = v; apply(X); } }
+      else if (k === 's') { for (const X of arr) { X.s = v / 100; apply(X); } if (b) b.textContent = v + '%'; }
+      else if (k === 'r') { for (const X of arr) { X.r = v; apply(X); } if (b) b.textContent = v + '°'; }
+      else if (k === 'op') { for (const X of arr) { X.op = v / 100; apply(X); } if (b) b.textContent = v + '%'; }
+      drawOverlay();
     };
-    $('#svgFront').onclick = () => move(1); $('#svgBack').onclick = () => move(-1); $('#svgDel').onclick = delLayer;
+    $('#svgFront').onclick = () => move(1); $('#svgBack').onclick = () => move(-1);
+    $('#svgDel').onclick = delLayer; $('#svgClear').onclick = clearAll;
   }
+  /** 层级：既要改数组顺序，也要改 SVG 里 DOM 的先后（DOM 顺序才是真正决定谁盖住谁） */
   function move(d) {
-    const L = sel(); if (!L) return;
+    const arr = sels(); if (!arr.length) return;
+    const L = arr[arr.length - 1];
     const i = S.layers.indexOf(L), j = i + d;
     if (j < 0 || j >= S.layers.length) return;
-    S.layers.splice(i, 1); S.layers.splice(j, 0, L); list();
+    S.layers.splice(i, 1); S.layers.splice(j, 0, L);
+    /* DOM 顺序跟着走：把这一层挪到目标位置 */
+    const ref = S.layers[j + 1] || null;
+    S.svg.insertBefore(L.g, ref ? ref.g : S.svg.lastChild);
+    /* 保持 S.layers 和 DOM 一致 */
+    const gs = [...S.svg.querySelectorAll('g[data-sg]')];
+    S.layers.forEach((X, k) => { if (gs[k] && X.g !== gs[k]) { X.g = gs[k]; X.bb = null; apply(X); } });
+    list(); drawOverlay();
   }
   function delLayer() {
-    const L = sel(); if (!L) return;
-    const i = S.layers.indexOf(L);
-    S.layers.splice(i, 1); L.g.remove(); S.sel = null; list();
-    undoToast(t('delUndoLayer'), { undo: () => { S.layers.splice(Math.min(i, S.layers.length), 0, L); S.svg.insertBefore(L.g, S.svg.childNodes[i] || null); S.sel = L; apply(L); list(); } });
+    const arr = sels(); if (!arr.length) return;
+    const idxs = arr.map(L => S.layers.indexOf(L)).sort((a, b) => a - b);
+    const removed = idxs.map(i => S.layers[i]);
+    for (const L of removed) { try { L.g.remove(); } catch (e) { } }
+    S.layers = S.layers.filter(L => !removed.includes(L));
+    S.multi.clear(); S.sel = null;
+    list(); drawOverlay();
+    undoToast(t('delUndoLayer'), {
+      undo: () => {
+        const gs = [...S.svg.querySelectorAll('g[data-sg]')];
+        removed.forEach((L, k) => {
+          const at = Math.min(idxs[k], S.layers.length);
+          S.layers.splice(at, 0, L);
+          const ref = S.layers[at + 1] || null;
+          S.svg.insertBefore(L.g, ref ? ref.g : S.svg.lastChild);
+        });
+        const gs2 = [...S.svg.querySelectorAll('g[data-sg]')];
+        S.layers.forEach((X, k) => { if (gs2[k] && X.g !== gs2[k]) { X.g = gs2[k]; X.bb = null; apply(X); } });
+        S.sel = removed[0]; S.multi.add(removed[0]);
+        list(); drawOverlay();
+      }
+    });
+  }
+  function clearAll() {
+    if (!S.layers.length) return;
+    const all = S.layers.slice();
+    const nodes = all.map(L => L.g);
+    all.forEach(L => { try { L.g.remove(); } catch (e) { } });
+    S.layers = []; S.multi.clear(); S.sel = null;
+    list(); drawOverlay();
+    undoToast(t('svgCleared', { n: all.length }), {
+      undo: () => {
+        all.forEach(L => { S.layers.push(L); S.svg.appendChild(L.g); });
+        const gs = [...S.svg.querySelectorAll('g[data-sg]')];
+        S.layers.forEach((X, k) => { if (gs[k]) { X.g = gs[k]; X.bb = null; apply(X); } });
+        list(); drawOverlay();
+      }
+    });
   }
 
-  /* 把当前 SVG 序列化出来（带各层的变换） */
+  /* ───────── 导出 ───────── */
   function serialize(onlyIdx) {
     const svg = S.svg.cloneNode(true);
     const gs = [...svg.querySelectorAll('g[data-sg]')];
@@ -334,7 +558,6 @@ const SvgCanvas = (() => {
       if (ok) toast(t('svgPngDone'));
     } catch (e) { toast(t('svgExportFail')); }
   }
-  /* 每一层单独导成透明 PNG，存进素材库（这样 SVG 就能变成贴纸用） */
   async function exportLayers() {
     try {
       const files = [];
@@ -352,7 +575,25 @@ const SvgCanvas = (() => {
 
   function enter() {
     if (!S.svg) { mount(); }
-    requestAnimationFrame(() => { if (S.fit) fit(); });
+    requestAnimationFrame(() => { if (S.fit) fit(); else drawOverlay(); });
   }
-  return { enter, openRel, openFile, state: S, list, mount, apply, prop };
+  /* 键盘：Delete 删选中的、Esc 取消选中、方向键微调 */
+  document.addEventListener('keydown', (e) => {
+    if (!S.svg || !$('#v-svgcanvas').classList.contains('on')) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName || '')) return;
+    const arr = sels();
+    if ((e.key === 'Delete' || e.key === 'Backspace') && arr.length) { e.preventDefault(); e.stopPropagation(); delLayer(); return; }
+    if (e.key === 'Escape') { S.multi.clear(); S.sel = null; list(); drawOverlay(); e.stopPropagation(); return; }
+    if (arr.length && /^Arrow/.test(e.key)) {
+      e.preventDefault(); e.stopPropagation();
+      const k = e.shiftKey ? 10 : 1;
+      for (const L of arr) {
+        if (e.key === 'ArrowLeft') L.x -= k; if (e.key === 'ArrowRight') L.x += k;
+        if (e.key === 'ArrowUp') L.y -= k; if (e.key === 'ArrowDown') L.y += k;
+        apply(L);
+      }
+      drawOverlay();
+    }
+  }, true);
+  return { enter, openRel, openFile, state: S, list, mount, apply, prop, drawOverlay };
 })();

@@ -117,7 +117,7 @@ function buildEdit() {
           <div id="segParams" class="grp"></div></div>
         <div class="grp"><div class="gt">${t('elements')} <small id="segCount"></small></div>
           <div id="segList"></div>
-          <div class="chips"><button class="btn sm" id="bAll">${t('selAll')}</button><button class="btn sm" id="bNone">${t('selNone')}</button><button class="btn sm" id="bMerge" title="${t('mergeTip')}">${t('merge')}</button><button class="btn sm danger" id="bDel" title="${t('removeTip')}">${t('remove')}</button></div></div>
+          <div class="chips"><button class="btn sm" id="bAll">${t('selAll')}</button><button class="btn sm" id="bNone">${t('selNone')}</button><button class="btn sm" id="bMerge" title="${t('mergeTip')}">${t('merge')}</button><button class="btn sm danger" id="bDel" title="${t('removeTip')}">${t('remove')}</button><button class="btn sm danger" id="bClear" title="${t('segClearAll')}">${t('segClearAll')}</button></div></div>
         <label class="row2"><input type="checkbox" class="sw" id="segResid"><span>${t('resid')}</span></label>
       </div>
       <div class="inspFoot">
@@ -139,8 +139,9 @@ function segParams() {
     p.innerHTML = `<div class="chips">${mode('new', t('modeNew'), t('modeNewTip'))}${mode('add', t('modeAdd'), t('modeAddTip'))}${mode('sub', t('modeSub'), t('modeSubTip'))}</div>
     ${SEG.tool === 'wand' ? sl('wtol', t('pWand'), 6, 120, 1, SEG.wtol || 32) + '<div class="tip">' + t('tipWand') + '</div>' : ''}
     ${SEG.tool === 'lasso' ? '<div class="tip">' + t('tipLasso') + '</div>' : ''}
-    ${SEG.tool === 'ai' ? '<div class="tip">' + t('tipAi') + '</div>' : ''}`;
+    ${SEG.tool === 'ai' ? '<div class="tip">' + t('tipAi') + '</div>' + aiPanel() : ''}`;
   }
+  aiBind();
 }
 function segList() {
   const el = $('#segList'); if (!el) return;
@@ -271,6 +272,15 @@ function segBindD() {
     if (id === 'bCopy') { doCopy(); return; }
     if (id === 'bSvg') { doSvg(); return; }
     if (id === 'bNew') { renderEmpty(); return; }
+    if (id === 'bClear') {
+      const killed = SEG.layers.slice();
+      if (!killed.length) { toast(t('noElems')); return; }
+      SEG.layers = []; SEG.sel.clear(); segList(); segRender();
+      undoToast(t('segCleared', { n: killed.length }), {
+        undo: () => { SEG.layers.push.apply(SEG.layers, killed); killed.forEach(l => l.on = false); segList(); segRender(); }
+      });
+      return;
+    }
     const row = e.target.closest('.segRow, .segCard');
     if (row && !e.target.matches('input')) { const L = SEG.layers.find(l => l.id === row.dataset.l); if (L) { L.on = !L.on; SEG.sel = new Set([L.id]); segList(); segRender(); } }
   };
@@ -355,6 +365,37 @@ document.addEventListener('drop', async (e) => {
   }
   openFile(f);                                                      // 拆元素页：导入并拆
 });
+/* 把图片从桌面拖到左侧导航按钮上 = 直接用那个功能处理它（和拖进右边工作区不一样） */
+const NAV_DROP = {
+  edit: (f) => openFile(f),                 // 拆元素：导入并拆
+  lib: (f) => saveDroppedToLib(f),         // 素材库：直接存进去
+  board: (f) => addFileToBoard(f),         // 画板：加一个图层
+  svglib: (f) => SvgLib.importFile(f),     // SVG 库：存成 SVG
+  svgcanvas: (f) => SvgCanvas.openFile(f)  // SVG 画布：直接打开
+};
+$('#nav').addEventListener('dragover', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  b.classList.add('drop');
+});
+$('#nav').addEventListener('dragleave', (e) => {
+  const b = e.target.closest('button'); if (b) b.classList.remove('drop');
+});
+$('#nav').addEventListener('drop', async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();          // 别让全局 drop 又处理一遍
+  b.classList.remove('drop');
+  const f = [...(e.dataTransfer && e.dataTransfer.files || [])].find(x => x.type && x.type.startsWith('image/'));
+  if (!f) return;
+  const fn = NAV_DROP[b.dataset.v];
+  if (!fn) { toast(t('navDropNo')); return; }
+  await fn(f);
+});
+/* 拖到画板：加一个图层 */
+async function addFileToBoard(f) {
+  try { showView('board'); Board.enter(); await Board.addFile(f, null); }
+  catch (e) { console.error('addFileToBoard', e); toast(t('badImg')); }
+}
 /* 拖到素材库：直接存进去 */
 async function saveDroppedToLib(f) {
   try {
@@ -372,10 +413,11 @@ async function renderLib() {
   const list = await api.listLib();
   const groups = {};
   for (const it of list) { const g = it.group || t('noGroup'); (groups[g] = groups[g] || []).push(it); }
-  el.innerHTML = `<div class="page"><div class="libHead"><h2 class="pt">${t('libTitle')}</h2><span class="sp"></span><button class="btn" id="lbOpen">${t('libOpen')}</button><button class="btn ghost" id="lbRef">${t('libRefresh')}</button></div>
+  el.innerHTML = `<div class="page"><div class="libHead"><h2 class="pt">${t('libTitle')}</h2><span class="sp"></span><button class="btn" id="lbOpen">${t('libOpen')}</button><button class="btn ghost" id="lbRef">${t('libRefresh')}</button><button class="btn danger" id="lbClear">${t('libClear')}</button></div>
   <p class="lead">${t('libLead', { n: list.length, p: '<span class="path">' + esc(CFG ? CFG.saveDir : '') + '</span>' })}<br>${t('libLead2')}</p>
   ${list.length ? Object.entries(groups).map(([g, items]) => `<div class="gh"><b>${esc(g)}</b><span>${t('nItems', { n: items.length })}</span></div><div class="grid">${items.map(it => `<div class="cell" data-rel="${esc(it.rel)}" data-copy title="${t('clickCopy')}"><div class="im"><img loading="lazy" src="${esc(it.url)}"></div><div class="nm" title="${esc(it.name)}">${esc(it.name)}</div><div class="bar"><button class="btn sm" data-act="board" title="${t('toBoardTip')}">${t('toBoard')}</button><button class="btn sm" data-act="reveal" title="${t('revealTip')}">${t('reveal')}</button><button class="btn sm danger" data-act="del" title="${t('delTip')}">${t('del')}</button></div></div>`).join('')}</div>`).join('') : '<div class="blank"><b>' + t('libEmptyT') + '</b><span>' + t('libEmptyD') + '</span></div>'}</div>`;
   $('#lbOpen').onclick = () => api.openDir(); $('#lbRef').onclick = renderLib;
+  $('#lbClear').onclick = () => clearAllPending('#v-lib', 'libClearUndo', 'libCleared');
   el.onclick = async (e) => {
     const cell = e.target.closest('.cell'); if (!cell) return; const rel = cell.dataset.rel;
     const b = e.target.closest('[data-act]');
@@ -397,6 +439,24 @@ async function renderLib() {
     }
     await api.copyLib(rel); toast(t('copiedPaste'));
   };
+}
+
+/* 批量清空：先全部标记成“待删”，3 秒内可以撤回，超时才真的进回收站 */
+async function clearAllPending(rootSel, undoKey, doneKey) {
+  const cells = [...document.querySelectorAll(rootSel + ' .cell')];
+  if (!cells.length) return;
+  const items = cells.map(c => ({ cell: c, rel: c.dataset.rel }));
+  items.forEach(x => x.cell.classList.add('pending'));
+  let undone = false;
+  undoToast(t(undoKey, { n: items.length }), {
+    undo: () => { undone = true; items.forEach(x => x.cell.classList.remove('pending')); toast(t('undone')); },
+    expire: async () => {
+      if (undone) return;
+      let n = 0;
+      for (const x of items) { if (await api.delLib(x.rel)) { x.cell.remove(); n++; } else x.cell.classList.remove('pending'); }
+      toast(t(doneKey, { n }));
+    }
+  });
 }
 
 /* 素材库 → 画板：复制一份进画板，素材本身留在库里，可以反复用 */

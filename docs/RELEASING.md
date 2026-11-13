@@ -3,7 +3,7 @@
 > 这一步是给维护者看的，普通用户不用管。
 
 1. 改 `package.json` 的 `version`，在 `docs/CHANGELOG*.md` 写上更新内容。
-2. 确认 `config.js`、`package.json`、README 里的仓库地址是 `ijijv/PixPeel`（“检查更新”靠它）。
+2. 确认 `config.js`、`package.json`、README 里的仓库地址是 `lertone/PixPeel`（“检查更新”靠它）。
 3. 提交后打 tag 并推送：
    ```bash
    git tag v1.0.1 && git push origin v1.0.1

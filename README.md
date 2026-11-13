@@ -22,16 +22,16 @@
 - **画板**：用素材库里的元素或导入的图片拼图，选画布大小和透明 / 纯色背景，可移动、缩放、旋转、删除，导出 PNG / JPG 或存回素材库。
 - **撤回 / 缩放 / 快捷键**：拆元素页和画板都能 Ctrl+Z 撤回、Ctrl+Shift+Z 重做，滚轮缩放、空格拖动平移；设置里可查看全部快捷键。
 - **高清修复**：素材库里标出低分辨率素材，一键放大并锐化（纯本机计算，不是 AI 生成），另存为 `-HD` 新图，原图保留。除了 Lanczos 放大和反锐化，还加了迭代反投影和去边处理，轮廓更实、白边黑边更少。
-- **素材库**：点击复制到剪贴板、在文件夹中显示、删除（进回收站）；删除后有 3 秒的「撤回」提示。
-- **SVG 库 / SVG 画布**：分层 SVG 单独收进 SVG 库；SVG 画布里能逐层显示/隐藏、移动、缩放、旋转、改透明度，也能把某一层导成透明 PNG 存回素材库。
+- **素材库**：点击复制到剪贴板、在文件夹中显示、删除（进回收站）；删除后有 3 秒的「撤回」提示，也能一键清空（同样可撤回）。
+- **SVG 库 / SVG 画布**：分层 SVG 单独收进 SVG 库；SVG 画布里能逐层显示/隐藏、移动、缩放、旋转、改透明度，也能把某一层导成透明 PNG 存回素材库。画布里可以框选多选、批量删除，四角缩放、顶部圆点旋转，中键拖动平移。
 - **和“小剪动画”联动**：保存的元素自动出现在小剪动画的贴图素材里。
-- **拖图进来**：把图片从桌面拖到任意一页——拆元素页就拆解，画板就当素材（第一张当底图），素材库直接存进去，SVG 库就当 SVG 处理。
+- **拖图进来**：把图片从桌面拖到右侧工作区，或者直接拖到左侧导航按钮上——拖到「拆元素」就拆解，拖到「素材库」就存进去，拖到「画板」就当素材，拖到「SVG 库 / SVG 画布」就按 SVG 处理。
 - **常驻托盘**、开机自启（可选）、保存后系统通知（点击即可打开素材库）。
 - 简体中文 / English，浅色 / 深色 / 跟随系统。
 
 ## 下载安装
 
-到 [Releases](https://github.com/ijijv/PixPeel/releases) 下载对应你系统的文件：
+到 [Releases](https://github.com/lertone/PixPeel/releases) 下载对应你系统的文件：
 
 | 系统 | 文件 | 说明 |
 | --- | --- | --- |
@@ -47,7 +47,7 @@
 每个版本附带 `SHA256SUMS.txt`，可用来校验下载是否完整。
 
 另外还有配套的网页版动画编辑器「小剪动画」，单独下载即可，不用装 PixPeel 也能用：
-[xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html)。
+[xiaoji-animation.html](https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html)。
 
 **升级**：直接运行新版安装包，会自动覆盖旧版，设置和素材都保留。
 
@@ -75,7 +75,7 @@
 
 “小剪动画”是另一个配套工具（一个跑在浏览器里的本地动画编辑器），和 PixPeel 是两个独立的软件。只有你想拿它做动画时才需要这一步；只是想把图片拆成透明贴纸的话，完全不用管它。
 
-1. 下载 [xiaoji-animation.html](https://github.com/ijijv/PixPeel/releases/latest/download/xiaoji-animation.html)（就是「小剪动画」，单文件网页版，双击就能用，不用装任何东西）。
+1. 下载 [xiaoji-animation.html](https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html)（就是「小剪动画」，单文件网页版，双击就能用，不用装任何东西）。
 2. 在 PixPeel 设置里确认“允许小剪动画读取素材库”已开启（默认 `127.0.0.1:17652`，只在本机可访问）。
 3. 用浏览器打开**下载到本地的 xiaoji-animation.html**，进入左侧“贴纸”，点“连接 PixPeel 桌面版”。
 4. 之后新保存的元素会自动出现在贴图里；也可以勾上“自动同步”，桌面版一存新元素就自动进贴图。
