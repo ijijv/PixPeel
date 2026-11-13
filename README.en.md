@@ -16,12 +16,14 @@ Everything runs locally. No uploads, no account.
 ## Features
 
 - **Capture mode**: the screen dims, drag a region, elements are split automatically, pick and save as transparent PNGs.
+- **Batch splitting**: import several images at once — each is split automatically and every element lands in one list; the images are tiled on a contact sheet so you can scan the whole batch and zoom in on the details.
 - **Click-to-extract mode**: the screen stays as it is; hover highlights an element, click saves it straight to the library. Click as many as you like.
 - **Import images**: button, drag & drop, or `Ctrl+V`.
 - **Refine tools**: Pick / Wand / Lasso / AI pick (optional, downloads a small model on first use and falls back to the hf-mirror.com mirror in China); export layered SVG. Two AI models to choose from: **quantized** (default — small, fast, light on memory) and **full precision** (slightly more accurate, roughly twice the download and memory). Switch in Settings.
 - **Board**: compose pictures from library elements or imported images; pick canvas size and transparent / solid background; move, scale, rotate, delete; export PNG / JPG or save back to the library.
 - **Undo / zoom / shortcuts**: Ctrl+Z / Ctrl+Shift+Z on both the Extract page and the Board, wheel zoom, Space-drag pan; every shortcut is listed in Settings.
 - **Enhance**: the library flags low-res items and upscales + sharpens them locally (classical resampling, not generative AI), saving a new `-HD` file and keeping the original. On top of Lanczos and unsharp masking it now does iterative back-projection and de-fringing, so edges look tighter and halos are less visible.
+- **Edge smoothing**: on export, small gaps along the edge are filled, enclosed holes are closed and the alpha transition is smoothed — no more broken outlines or stair-stepped jaggies. Pure local math; can be switched off in Settings.
 - **Library**: click to copy, reveal in folder, delete (to trash) — with a 3-second “Undo” prompt, and a one-click “Clear” (also undoable).
 - **SVG Library / SVG Canvas**: layered SVGs live in their own SVG library. In the SVG canvas you can show/hide, move, scale, rotate and fade each layer, and export any single layer as a transparent PNG back into the element library. Marquee-select several layers, delete them together, drag the corners to scale, the top dot to rotate, and use the middle button to pan.
 - **Link with the “小剪动画” video editor**: saved elements show up in its sticker library.

@@ -72,6 +72,9 @@
       svgSelN: '已选 {n} 层', svgDelSel: '删掉选中的 {n} 层', svgClearAll: '清空全部', svgCleared: '清空了 {n} 层',
       bdSelN: '已选 {n} 个', bdDeleteSel: '删除选中的 {n} 个', bdClearAll: '清空画布', bdCleared: '清空了画布',
       segSelN: '已选 {n} 个', segClearAll: '清空列表', segCleared: '已清空元素列表',
+      countSelImg: '{n} 个元素 · {img} 张图 · 已选 {s}',
+      batchDone: '{img} 张图拆完了，一共 {n} 个元素',
+      sEdge: '边缘平滑与补缺口', sEdgeD: '导出时自动补上边缘的小缺口、抹平锯齿（纯本机计算，不联网）；关掉就按原样输出',
       libClear: '清空', libClearUndo: '要清空 {n} 个', libCleared: '已清空 {n} 个', navDropNo: '这个栏目不接收图片',
       /* AI 模型：量化 / 浮点 */
       aiModel: 'AI 模型', aiModelQ: '量化版（推荐）', aiModelF: '浮点版（更精确）',
@@ -191,6 +194,9 @@
       svgSelN: '{n} selected', svgDelSel: 'Delete {n} selected', svgClearAll: 'Clear all', svgCleared: 'Cleared {n} layer(s)',
       bdSelN: '{n} selected', bdDeleteSel: 'Delete {n} selected', bdClearAll: 'Clear canvas', bdCleared: 'Canvas cleared',
       segSelN: '{n} selected', segClearAll: 'Clear list', segCleared: 'Element list cleared',
+      countSelImg: '{n} element(s) · {img} image(s) · {s} selected',
+      batchDone: 'Split {img} image(s) — {n} element(s) in total',
+      sEdge: 'Edge smoothing & gap repair', sEdgeD: 'On export, small gaps along the edge are filled and jaggies are smoothed (local only, no network). Turn it off to export exactly as split.',
       libClear: 'Clear', libClearUndo: 'About to clear {n}', libCleared: 'Cleared {n}', navDropNo: 'This section does not take images',
       /* AI model: quantized / float */
       aiModel: 'AI model', aiModelQ: 'Quantized (recommended)', aiModelF: 'Full precision',

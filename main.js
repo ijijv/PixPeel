@@ -31,6 +31,7 @@ const DEFAULTS = () => ({
   hotkey2: 'CommandOrControl+Alt+X',
   autoHide: true,
   autoHD: false,
+  edgeSmooth: true,
   aiModel: 'q8',
   notify: true,
   openAtLogin: false,
@@ -271,12 +272,15 @@ function saveLive(o) {
 
 async function importDialog() {
   showWindow();
-  const r = await dialog.showOpenDialog(win, { title: T('pickImgT'), properties: ['openFile'], filters: [{ name: T('imgFilter'), extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }] });
-  if (r.canceled || !r.filePaths[0]) return { ok: false };
-  const p = r.filePaths[0], ext = path.extname(p).slice(1).toLowerCase();
-  const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp' }[ext] || 'image/png';
-  toRenderer('capture:image', { dataURL: `data:${mime};base64,` + fs.readFileSync(p).toString('base64'), name: path.basename(p) });
-  return { ok: true };
+  const r = await dialog.showOpenDialog(win, { title: T('pickImgT'), properties: ['openFile', 'multiSelections'], filters: [{ name: T('imgFilter'), extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }] });
+  if (r.canceled || !r.filePaths.length) return { ok: false };
+  const mimeOf = (p) => {
+    const ext = path.extname(p).slice(1).toLowerCase();
+    return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp' }[ext] || 'image/png';
+  };
+  const items = r.filePaths.map(p => ({ dataURL: `data:${mimeOf(p)};base64,` + fs.readFileSync(p).toString('base64'), name: path.basename(p) }));
+  toRenderer('capture:images', { items });
+  return { ok: true, n: items.length };
 }
 
 /* ---------- 联动服务 ---------- */

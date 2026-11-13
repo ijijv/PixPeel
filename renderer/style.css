@@ -25,11 +25,12 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 
 /* ── 左侧导航轨 ── */
 .rail{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--panel);border-right:1px solid var(--line)}
-.logo{width:44px;height:44px;margin-bottom:10px;position:relative}.logo img{width:100%;height:100%;display:block;border-radius:11px}
-/* logo 外圈：虚线一直绕着中心圆点转 */
-.logo .logring{position:absolute;left:-6px;top:-6px;width:56px;height:56px;color:var(--mint);opacity:.7;pointer-events:none;animation:logospin 9s linear infinite}
-@keyframes logospin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.logo .logring{animation:none}}
+.logo{width:44px;height:44px;margin-bottom:10px;position:relative}
+.logo .logoSvg{width:100%;height:100%;display:block}
+/* 橙色图标内部的白色虚线：一直绕着中心圆点流动 */
+.logo .logodash{animation:logoflow 1.6s linear infinite}
+@keyframes logoflow{from{stroke-dashoffset:0}to{stroke-dashoffset:-18}}
+@media (prefers-reduced-motion:reduce){.logo .logodash{animation:none}}
 .logo svg.i{width:22px;height:22px;stroke-width:2}
 #nav{display:flex;flex-direction:column;gap:4px;width:100%}
 #nav button{display:grid;justify-items:center;gap:3px;padding:9px 0 7px;border:0;background:none;border-radius:var(--r);color:var(--dim);cursor:pointer;font-size:12px;transition:background .15s,color .15s}
@@ -243,19 +244,19 @@ select:hover{border-color:var(--mint)}
 #dropHint.on{opacity:1;transform:translate(-50%,0)}
 
 /* ───────── 元素列表：卡片网格，随窗口自适应 ───────── */
-#segList{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;align-content:start}
-.segCard{border:1px solid var(--line);border-radius:10px;background:var(--raise);padding:6px;display:grid;gap:4px;cursor:pointer;
+#segList{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;align-content:start}
+.segCard{border:1px solid var(--line);border-radius:9px;background:var(--raise);padding:5px;display:grid;gap:3px;cursor:pointer;
   transition:border-color .15s,background .15s;min-width:0}
 .segCard:hover{border-color:var(--line2)}
 .segCard.sel{border-color:var(--mint);background:var(--mint-soft)}
-.segCard .scBox{position:relative;aspect-ratio:1;border-radius:7px;overflow:hidden;display:grid;place-items:center;
-  background:repeating-conic-gradient(var(--chk3) 0 25%,var(--chk4) 0 50%) 0 0/10px 10px}
+.segCard .scBox{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;display:grid;place-items:center;
+  background:repeating-conic-gradient(var(--chk3) 0 25%,var(--chk4) 0 50%) 0 0/9px 9px}
 .segCard .scBox canvas{max-width:100%;max-height:100%;display:block}
-.segCard .scBox input{position:absolute;left:4px;top:4px;accent-color:var(--mint)}
-.segCard .segName{width:100%;min-width:0;border:1px solid transparent;background:transparent;border-radius:6px;padding:2px 4px;font-size:11.5px;color:var(--fg)}
+.segCard .scBox input{position:absolute;left:3px;top:3px;accent-color:var(--mint);width:13px;height:13px}
+.segCard .segName{width:100%;min-width:0;border:1px solid transparent;background:transparent;border-radius:5px;padding:1px 3px;font-size:11px;color:var(--fg)}
 .segCard .segName:hover{border-color:var(--line)}
 .segCard .segName:focus{outline:none;border-color:var(--mint);background:var(--panel)}
-.segCard .dim{font-size:10.5px;color:var(--faint);padding-left:4px}
+.segCard .dim{font-size:10px;color:var(--faint);padding-left:3px}
 
 /* 素材库：等待删除确认的格子 */
 .cell.pending{opacity:.42;filter:grayscale(.6)}
@@ -305,3 +306,4 @@ select:hover{border-color:var(--mint)}
 /* 拖到导航按钮上 */
 #nav button.drop{background:var(--mint-soft);border-color:var(--mint);color:var(--tx)}
 #nav button.drop svg.i{stroke:var(--mint)}
+.segCard .src{display:block;font-size:9.5px;color:var(--faint);padding-left:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}

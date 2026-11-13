@@ -89,7 +89,7 @@ const SvgLib = (() => {
 const SvgCanvas = (() => {
   const S = {
     name: '', w: 0, h: 0, svg: null, layers: [], sel: null, multi: new Set(),
-    z: 1, x: 0, y: 0, fit: true, mode: null, ov: null
+    z: 1, x: 0, y: 0, fit: true, mode: null, ov: null, lang: ''
   };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -574,7 +574,8 @@ const SvgCanvas = (() => {
   }
 
   function enter() {
-    if (!S.svg) { mount(); }
+    /* 语言变了要重新挂载，否则面板上还是上一种语言的文案 */
+    if (!S.svg || S.lang !== I18N.lang) { S.lang = I18N.lang; mount(); }
     requestAnimationFrame(() => { if (S.fit) fit(); else drawOverlay(); });
   }
   /* 键盘：Delete 删选中的、Esc 取消选中、方向键微调 */

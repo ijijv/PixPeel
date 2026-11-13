@@ -1,7 +1,29 @@
 /* PixPeel 拆元素引擎（与“小剪动画”里的拆元素同一套算法）。纯前端，无依赖。 */
 const uid=()=>Math.random().toString(36).slice(2,10);
 const _yield=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>r();c.port2.postMessage(0)});
-const SEG={src:null,layers:[],sel:new Set(),hov:null,tool:'pick',mode:'new',tol:40,merge:6,minA:.15,how:'auto',K:6,fromClip:null,lasso:null,ai:null,busy:false,seq:1};
+const SEG={src:null,layers:[],sel:new Set(),hov:null,tool:'pick',mode:'new',tol:40,merge:6,minA:.15,how:'auto',K:6,fromClip:null,lasso:null,ai:null,busy:false,seq:1,
+  tiles:[],cur:0,wall:{w:0,h:0},gap:18,tileH:520};
+
+/* ── 多图拼贴墙：批量导入的图统一缩放、均分网格铺在一张大画布上 ── */
+function segAddTile(src,name){
+  const t={id:uid(),name:name||t('image'),src,w:src.w,h:src.h,x:0,y:0,sc:1};
+  SEG.tiles.push(t);segLayout();return t;
+}
+function segLayout(){
+  const ts=SEG.tiles;if(!ts.length){SEG.wall={w:0,h:0};return}
+  const H=SEG.tileH,GAP=SEG.gap;
+  let sc=1;for(const t of ts)sc=Math.min(sc,H/t.h);
+  let tw=0;for(const t of ts){t.sc=sc;tw=Math.max(tw,t.w*sc)}
+  const cols=Math.max(1,Math.ceil(Math.sqrt(ts.length))),rows=Math.ceil(ts.length/cols);
+  ts.forEach((t,i)=>{t.x=(i%cols)*(tw+GAP);t.y=Math.floor(i/cols)*(H+GAP)});
+  SEG.wall={w:cols*(tw+GAP)-GAP,h:rows*(H+GAP)-GAP};
+}
+/** 画布坐标 → 落在哪张图上 */
+function segTileAt(wx,wy){
+  for(const t of SEG.tiles){if(wx>=t.x&&wy>=t.y&&wx<t.x+t.w*t.sc&&wy<t.y+t.h*t.sc)return t}
+  return null;
+}
+function segCurTile(){return SEG.tiles[SEG.cur]||null}
 const SEGCOL=['#ff5d8f','#4dd0e1','#ffd54f','#9ccc65','#b388ff','#ff8a65','#4db6ac','#f06292','#7986cb','#aed581','#ffb74d','#4fc3f7'];
 function segPrep(el,w,h){
   const s=Math.min(1,1600/Math.max(w,h)),W=Math.max(1,Math.round(w*s)),H=Math.max(1,Math.round(h*s));
@@ -118,8 +140,9 @@ async function segAuto(){
     }
   }
   out.sort((a,b)=>b.area-a.area);
-  SEG.layers=[];SEG.seq=1;SEG.sel.clear();
-  for(const o of out.slice(0,60))SEG.layers.push(segMk(o));
+  /* 批量拆解时只清掉「当前这张图」的旧元素，其它图的结果要留着 */
+  SEG.layers=SEG.layers.filter(l=>l.tile!==SEG.cur);SEG.sel.clear();
+  for(const o of out.slice(0,60)){const L=segMk(o);L.tile=SEG.cur;SEG.layers.push(L);}
   return info+(out.length>60?t('eTooMany'):'');
 }
 /* 魔棒 */
@@ -140,14 +163,14 @@ function segWand(x,y,tol){
 function segTargets(full){
   const {w}=SEG.src,act=SEG.layers.find(l=>l.id===[...SEG.sel][0]);
   if(act)return[act];
-  const on=SEG.layers.filter(l=>l.on);
+  const on=SEG.layers.filter(l=>l.on&&l.tile===SEG.cur);
   if(SEG.mode==='add')return on.length===1?on:[];
   if(on.length)return on;
-  return SEG.layers.filter(L=>{for(let y=0;y<L.bh;y++)for(let x=0;x<L.bw;x++)if(L.m[y*L.bw+x]&&full[(L.by+y)*w+L.bx+x])return true;return false});
+  return SEG.layers.filter(L=>{if(L.tile!==SEG.cur)return false;for(let y=0;y<L.bh;y++)for(let x=0;x<L.bw;x++)if(L.m[y*L.bw+x]&&full[(L.by+y)*w+L.bx+x])return true;return false});
 }
 function segApply(full){
   const {w,h}=SEG.src;
-  if(SEG.mode==='new'){const nl=segLayerFromFull(full,w,h);if(!nl){toast(t('eNoSel'));return}SEG.layers.push(nl);SEG.sel=new Set([nl.id]);return}
+  if(SEG.mode==='new'){const nl=segLayerFromFull(full,w,h);if(!nl){toast(t('eNoSel'));return}nl.tile=SEG.cur;SEG.layers.push(nl);SEG.sel=new Set([nl.id]);return}
   const ts=segTargets(full);
   if(!ts.length){toast(t(SEG.mode==='add'?'eNeedSel':'eNoHit'));return}
   let last=null;
@@ -156,15 +179,73 @@ function segApply(full){
     for(let i=0;i<cur.length;i++){if(SEG.mode==='add'){if(full[i])cur[i]=1}else if(full[i])cur[i]=0}
     const nl=segLayerFromFull(cur,w,h,L.name),ix=SEG.layers.indexOf(L);
     if(!nl){SEG.layers.splice(ix,1);SEG.sel.delete(L.id);continue}
-    nl.color=L.color;nl.on=L.on;SEG.layers[ix]=nl;last=nl;
+    nl.color=L.color;nl.on=L.on;nl.tile=L.tile;SEG.layers[ix]=nl;last=nl;
   }
   SEG.sel=last?new Set([last.id]):new Set();
 }
+/* ── 边缘处理：补小缺口 + 润化边缘（默认开启） ──
+ * 拆出来的元素边缘常有三种毛病：细小的断口、1px 锯齿、边缘发虚。
+ * 这里用纯本机算法处理，不联网、不加载任何模型：
+ *   ① 形态学闭运算（先膨胀后腐蚀）→ 把边缘上的小缺口补上、连上断开的地方
+ *   ② 导出时对 alpha 通道做一次轻微平滑 → 消掉台阶状的锯齿
+ */
+const segEdgeOn = () => !(typeof CFG !== 'undefined' && CFG && CFG.edgeSmooth === false);
+function segDilate(m, w, h, r) {
+  const a = new Uint8Array(w * h), b = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = 0;
+    for (let k = -r; k <= r && !v; k++) { const xx = x + k < 0 ? 0 : (x + k >= w ? w - 1 : x + k); if (m[y * w + xx]) v = 1; }
+    a[y * w + x] = v;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = 0;
+    for (let k = -r; k <= r && !v; k++) { const yy = y + k < 0 ? 0 : (y + k >= h ? h - 1 : y + k); if (a[yy * w + x]) v = 1; }
+    b[y * w + x] = v;
+  }
+  return b;
+}
+function segErode(m, w, h, r) {
+  const a = new Uint8Array(w * h), b = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = 1;
+    for (let k = -r; k <= r && v; k++) { const xx = x + k < 0 ? 0 : (x + k >= w ? w - 1 : x + k); if (!m[y * w + xx]) v = 0; }
+    a[y * w + x] = v;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = 1;
+    for (let k = -r; k <= r && v; k++) { const yy = y + k < 0 ? 0 : (y + k >= h ? h - 1 : y + k); if (!a[yy * w + x]) v = 0; }
+    b[y * w + x] = v;
+  }
+  return b;
+}
+/** 填掉被完全包住的洞（字母 O 的中间、甜甜圈中间这类），不会误伤相邻的独立元素 */
+function segFillHoles(m,w,h){
+  const seen=new Uint8Array(w*h),st=[];
+  const push=i=>{if(!seen[i]&&!m[i]){seen[i]=1;st.push(i)}};
+  for(let x=0;x<w;x++){push(x);push((h-1)*w+x)}
+  for(let y=0;y<h;y++){push(y*w);push(y*w+w-1)}
+  while(st.length){const p=st.pop(),x=p%w,y=(p/w)|0;
+    if(x>0)push(p-1);if(x<w-1)push(p+1);if(y>0)push(p-w);if(y<h-1)push(p+w)}
+  const out=new Uint8Array(m);
+  for(let i=0;i<m.length;i++)if(!m[i]&&!seen[i])out[i]=1;
+  return out;
+}
+/** 补过缺口的蒙版（结果缓存在图层上，避免每次重绘都算） */
+function segPolishMask(L) {
+  if (L.mp) return L.mp;
+  if (!segEdgeOn() || !L.m) return (L.mp = L.m);
+  /* 先闭运算补上边缘上的小缝隙，再填掉封闭的洞 */
+  let m = segErode(segDilate(L.m, L.bw, L.bh, 1), L.bw, L.bh, 1);
+  m = segFillHoles(m, L.bw, L.bh);
+  return (L.mp = m);
+}
 /* 取出一个图层的透明底图 */
 function segCut(L,pad){
-  const {w,data}=SEG.src,p=pad||1,W=L.bw+p*2,H=L.bh+p*2;
+  const tl=SEG.tiles[L.tile]||segCurTile(),src=(tl&&tl.src)||SEG.src;
+  const {w,data}=src,p=pad||1,W=L.bw+p*2,H=L.bh+p*2;
   const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),id=g.createImageData(W,H);
-  const mv=(x,y)=>(x<0||y<0||x>=L.bw||y>=L.bh)?0:L.m[y*L.bw+x];
+  const M=segPolishMask(L);
+  const mv=(x,y)=>(x<0||y<0||x>=L.bw||y>=L.bh)?0:M[y*L.bw+x];
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const mx=x-p,my=y-p;let s=0;
     for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)s+=mv(mx+dx,my+dy);
@@ -173,7 +254,26 @@ function segCut(L,pad){
     const sx=L.bx+mx,sy=L.by+my,si=(Math.max(0,sy)*w+Math.max(0,Math.min(w-1,sx)))*4,d=(y*W+x)*4;
     id.data[d]=data[si];id.data[d+1]=data[si+1];id.data[d+2]=data[si+2];id.data[d+3]=Math.round(255*a*data[si+3]/255);
   }
-  g.putImageData(id,0,0);return{cv:c,px:L.bx-p,py:L.by-p};
+  g.putImageData(id,0,0);
+  if(segEdgeOn())segSmoothEdge(g,W,H);
+  return{cv:c,px:L.bx-p,py:L.by-p};
+}
+/* ② 润化边缘：把 alpha 通道里 0~255 之间的过渡带再抹平一点，去掉台阶锯齿 */
+function segSmoothEdge(g,W,H){
+  const id=g.getImageData(0,0,W,H),d=id.data,n=W*H;
+  const A=new Float32Array(n);
+  for(let i=0;i<n;i++)A[i]=d[i*4+3];
+  const out=new Float32Array(n);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    let sum=0,wsum=0;
+    for(let dy=-1;dy<=1;dy++){const yy=y+dy;if(yy<0||yy>=H)continue;
+      for(let dx=-1;dx<=1;dx++){const xx=x+dx;if(xx<0||xx>=W)continue;
+        const a=A[yy*W+xx];sum+=a;wsum++}}
+    const avg=wsum?sum/wsum:0;
+    out[y*W+x]=A[y*W+x]*.65+avg*.35;
+  }
+  for(let i=0;i<n;i++)d[i*4+3]=Math.max(0,Math.min(255,Math.round(out[i])));
+  g.putImageData(id,0,0);
 }
 /* ── AI 点选（SlimSAM，放在 Worker 里，需联网下载模型） ── */
 /* 模型有两种：量化版（q8，默认）和浮点版。

@@ -77,7 +77,8 @@ const IC = {
   ai: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7zM18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/></svg>'
 };
 function renderEmpty() {
-  SEG.src = null; SEG.layers = [];
+  SEG.src = null; SEG.layers = []; SEG.tiles = []; SEG.cur = 0; SEG.wall = { w: 0, h: 0 };
+  SEG.sel.clear(); SEG.hov = null; SEG.lasso = null;
   $('#v-edit').innerHTML = `<div class="empty"><div class="finder" id="drop">
     <h2>${t('emTitle', { k: '<kbd>' + esc(pretty(CFG && CFG.hotkey)) + '</kbd>' })}</h2>
     <p>${t('emP1')}</p>
@@ -89,22 +90,38 @@ function renderEmpty() {
 }
 function openImage(el, w, h, name) {
   if (SEG.ai) { try { SEG.ai.w.terminate(); URL.revokeObjectURL(SEG.ai.url); } catch (e) { } SEG.ai = null; }
-  SEG.src = segPrep(el, w, h); SEG.layers = []; SEG.sel = new Set(); SEG.hov = null; SEG.tool = 'pick'; SEG.mode = 'new'; SEG.seq = 1; SEG.name = name || t('image');
+  /* 批量导入：每张图都是拼贴墙上的一块，元素全部汇总到一个列表里 */
+  const src = segPrep(el, w, h);
+  segAddTile(src, name);
+  SEG.cur = SEG.tiles.length - 1;
+  SEG.src = src;
+  SEG.sel = new Set(); SEG.hov = null; SEG.tool = 'pick'; SEG.mode = 'new'; SEG.lasso = null;
+  SEG.name = name || t('image');
   showView('edit');
   buildEdit();
   segBusy(t('splitting'));
-  setTimeout(async () => {
+  const before = new Set(SEG.layers.map(l => l.id));
+  return new Promise(res => setTimeout(async () => {
     const info = await segAuto();
-    SEG.layers.forEach(l => l.on = false);           // 自动拆出来的先都不选，由你挑
+    SEG.layers.forEach(l => { if (!before.has(l.id)) { l.tile = SEG.cur; l.on = false; } });
     segBusy(''); segRender(); segList();
     const tp = $('#segInfo'); if (tp) tp.textContent = info;
-  }, 30);
+    res(SEG.layers.length - before.size);
+  }, 30));
+}
+/** 切换当前操作的图块 */
+function setCurTile(tile) {
+  const i = SEG.tiles.indexOf(tile); if (i < 0 || i === SEG.cur) return;
+  SEG.cur = i; SEG.src = tile.src; SEG.lasso = null; SEG.hov = null;
+  const sb = $('#segName'); if (sb) sb.textContent = tile.name;
+  const ss = $('#segSize'); if (ss) ss.textContent = tile.w + ' × ' + tile.h;
+  segList(); segRender();
 }
 function buildEdit() {
   $('#v-edit').innerHTML = `
     <div class="stageWrap">
-      <div class="segStage"><canvas id="segCv" width="${SEG.src.w}" height="${SEG.src.h}"></canvas><div id="segBusy" style="display:none"></div></div>
-      <div class="stageBar"><span>${esc(SEG.name)}</span><span class="dim">${SEG.src.w} × ${SEG.src.h}</span><span class="sp"></span>
+      <div class="segStage"><canvas id="segCv" width="${SEG.wall.w || SEG.src.w}" height="${SEG.wall.h || SEG.src.h}"></canvas><div id="segBusy" style="display:none"></div></div>
+      <div class="stageBar"><span id="segName">${esc(SEG.name)}</span><span class="dim" id="segSize">${SEG.src.w} × ${SEG.src.h}</span><span class="sp"></span>
         <span class="hint"><span>${t('hintClick')}</span><span><kbd>Enter</kbd> ${t('hintSave')}</span><span><kbd>Esc</kbd> ${t('hintHide')}</span></span></div>
     </div>
     <aside class="inspector">
@@ -146,17 +163,23 @@ function segParams() {
 function segList() {
   const el = $('#segList'); if (!el) return;
   const n = SEG.layers.filter(l => l.on).length;
-  $('#segCount').textContent = t('countSel', { n: SEG.layers.length, s: n });
+  $('#segCount').textContent = SEG.tiles.length > 1 ? t('countSelImg', { n: SEG.layers.length, s: n, img: SEG.tiles.length }) : t('countSel', { n: SEG.layers.length, s: n });
   const bs = $('#bSave'); if (bs) { bs.textContent = n ? t('saveSel', { n }) : t('saveHint'); bs.disabled = !n; }
   /* 元素列表做成卡片网格：列数随侧栏宽度自动变，缩略图给足空间，不再一小条一小条地挤着 */
   const BOX = 96;
-  el.innerHTML = SEG.layers.length ? SEG.layers.map(L =>
-    `<div class="segCard${L.on ? ' sel' : ''}" data-l="${L.id}">
+  /* 整块重画会把滚动位置弹回顶部，先记住、画完再放回去 */
+  const box = el.closest('.inspBody') || el.parentElement;
+  const keepTop = box ? box.scrollTop : 0;
+  el.innerHTML = SEG.layers.length ? SEG.layers.map(L => {
+    const tile = SEG.tiles[L.tile];
+    return `<div class="segCard${L.on ? ' sel' : ''}" data-l="${L.id}">
       <div class="scBox"><canvas data-lt="${L.id}" width="${BOX}" height="${BOX}"></canvas>
         <input type="checkbox" data-lc="${L.id}" ${L.on ? 'checked' : ''}></div>
       <input class="segName" data-ln="${L.id}" value="${esc(L.name)}">
       <span class="dim">${L.bw}×${L.bh}</span>
-    </div>`).join('') : '<div class="tip">' + t('noElems') + '</div>';
+      ${SEG.tiles.length > 1 && tile ? `<span class="src" title="${esc(tile.name)}">${esc(tile.name)}</span>` : ''}
+    </div>`; }).join('') : '<div class="tip">' + t('noElems') + '</div>';
+  if (box) box.scrollTop = keepTop;
   el.querySelectorAll('canvas[data-lt]').forEach(cv => {
     const L = SEG.layers.find(l => l.id === cv.dataset.lt); if (!L) return;
     const g = cv.getContext('2d'), w = L.bw, h = L.bh, s = Math.min(BOX / w, BOX / h);
@@ -167,36 +190,65 @@ function segList() {
 }
 function segRender() {
   const cv = $('#segCv'); if (!cv || !SEG.src) return;
-  const g = cv.getContext('2d'), { w, h } = SEG.src;
-  g.clearRect(0, 0, w, h); g.drawImage(SEG.src.cv, 0, 0);
+  const g = cv.getContext('2d'), W = SEG.wall.w || SEG.src.w, H = SEG.wall.h || SEG.src.h;
+  g.clearRect(0, 0, W, H);
+  /* 拼贴墙：所有导入的图统一缩放、网格铺开，当前操作的那块高亮 */
+  for (const tile of SEG.tiles) {
+    const act = (tile === segCurTile());
+    g.save(); g.globalAlpha = act ? 1 : .45;
+    g.drawImage(tile.src.cv, tile.x, tile.y, tile.w * tile.sc, tile.h * tile.sc);
+    g.restore();
+    g.save(); g.strokeStyle = act ? '#52e3bd' : 'rgba(255,255,255,.18)'; g.lineWidth = act ? 2 : 1;
+    g.strokeRect(tile.x - .5, tile.y - .5, tile.w * tile.sc + 1, tile.h * tile.sc + 1); g.restore();
+    if (SEG.tiles.length > 1) {
+      g.save(); g.font = `${Math.max(11, 14 * tile.sc)}px sans-serif`; g.fillStyle = act ? '#52e3bd' : 'rgba(255,255,255,.55)';
+      g.fillText(tile.name, tile.x + 2, tile.y - 6); g.restore();
+    }
+  }
+  const tile = segCurTile(); if (!tile) return;
+  const sc = tile.sc, ox = tile.x, oy = tile.y;
   for (const L of SEG.layers) {
+    if (L.tile !== SEG.cur) continue;
     const hov = SEG.hov === L.id;
     g.globalAlpha = L.on ? .3 : hov ? .22 : .0;
-    g.drawImage(L.tint, L.bx, L.by);
+    g.drawImage(L.tint, ox + L.bx * sc, oy + L.by * sc, L.bw * sc, L.bh * sc);
   }
   g.globalAlpha = 1;
-  const lw = Math.max(2, w / 400);
+  const lw = Math.max(2, tile.w * sc / 400);
   for (const L of SEG.layers) {
+    if (L.tile !== SEG.cur) continue;
     if (!(L.on || SEG.hov === L.id || SEG.sel.has(L.id))) continue;
     g.strokeStyle = L.on ? '#52e3bd' : L.color; g.lineWidth = lw; g.setLineDash([8, 6]);
-    g.strokeRect(L.bx - 1, L.by - 1, L.bw + 2, L.bh + 2); g.setLineDash([]);
+    g.strokeRect(ox + L.bx * sc - 1, oy + L.by * sc - 1, L.bw * sc + 2, L.bh * sc + 2); g.setLineDash([]);
   }
   if (SEG.lasso && SEG.lasso.length > 1) {
     g.strokeStyle = '#fff'; g.lineWidth = lw; g.setLineDash([6, 5]); g.beginPath();
-    SEG.lasso.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke(); g.setLineDash([]);
+    SEG.lasso.forEach((p, i) => i ? g.lineTo(ox + p[0] * sc, oy + p[1] * sc) : g.moveTo(ox + p[0] * sc, oy + p[1] * sc)); g.stroke(); g.setLineDash([]);
   }
 }
 function segAt(x, y) {
   let best = null;
   for (const L of SEG.layers) {
+    if (L.tile !== SEG.cur) continue;
     if (x < L.bx || y < L.by || x >= L.bx + L.bw || y >= L.by + L.bh) continue;
     if (L.m[(Math.floor(y) - L.by) * L.bw + Math.floor(x) - L.bx] && (!best || L.area < best.area)) best = L;
   }
   return best;
 }
-function segPt(e) {
+/* 屏幕坐标 → 拼贴墙坐标 → 落在哪张图上 → 该图内的像素坐标 */
+function segWallPt(e) {
   const cv = $('#segCv'), r = cv.getBoundingClientRect();
-  return [Math.max(0, Math.min(SEG.src.w - 1, Math.floor((e.clientX - r.left) * SEG.src.w / r.width))), Math.max(0, Math.min(SEG.src.h - 1, Math.floor((e.clientY - r.top) * SEG.src.h / r.height)))];
+  const W = SEG.wall.w || 1, H = SEG.wall.h || 1;
+  const wx = (e.clientX - r.left) * W / r.width, wy = (e.clientY - r.top) * H / r.height;
+  const tile = segTileAt(wx, wy);
+  if (!tile) return { wx, wy, tile: null, x: 0, y: 0 };
+  return { wx, wy, tile, x: Math.floor((wx - tile.x) / tile.sc), y: Math.floor((wy - tile.y) / tile.sc) };
+}
+function segPt(e) {
+  const p = segWallPt(e);
+  if (p.tile && p.tile !== segCurTile()) setCurTile(p.tile);
+  const tl = segCurTile(); if (!tl) return [0, 0];
+  return [Math.max(0, Math.min(tl.w - 1, p.x)), Math.max(0, Math.min(tl.h - 1, p.y))];
 }
 /* 手动新建的元素默认就是选中的 */
 const _segApply = segApply;
@@ -205,13 +257,17 @@ segApply = function (full) { const before = new Set(SEG.layers.map(l => l.id)); 
 async function buildOut() {
   const items = SEG.layers.filter(l => l.on), out = [];
   if (!items.length) { toast(t('pickFirst')); return null; }
+  /* 「剩下的部分也存成一层」只对当前这张图有意义（其它图的坐标不在同一个画布里） */
   if ($('#segResid') && $('#segResid').checked) {
-    const { w, h, data } = SEG.src, full = new Uint8Array(w * h);
-    for (const L of items) for (let y = 0; y < L.bh; y++) for (let x = 0; x < L.bw; x++) if (L.m[y * L.bw + x]) full[(L.by + y) * w + L.bx + x] = 1;
-    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-    const g = cv.getContext('2d'), id = g.createImageData(w, h);
-    for (let i = 0; i < w * h; i++) { if (full[i]) continue; const j = i * 4; id.data[j] = data[j]; id.data[j + 1] = data[j + 1]; id.data[j + 2] = data[j + 2]; id.data[j + 3] = data[j + 3]; }
-    g.putImageData(id, 0, 0); out.push({ name: t('bg'), cv, x: 0, y: 0, area: 1e12 });
+    const here = items.filter(l => l.tile === SEG.cur);
+    if (here.length) {
+      const { w, h, data } = SEG.src, full = new Uint8Array(w * h);
+      for (const L of here) for (let y = 0; y < L.bh; y++) for (let x = 0; x < L.bw; x++) if (L.m[y * L.bw + x]) full[(L.by + y) * w + L.bx + x] = 1;
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const g = cv.getContext('2d'), id = g.createImageData(w, h);
+      for (let i = 0; i < w * h; i++) { if (full[i]) continue; const j = i * 4; id.data[j] = data[j]; id.data[j + 1] = data[j + 1]; id.data[j + 2] = data[j + 2]; id.data[j + 3] = data[j + 3]; }
+      g.putImageData(id, 0, 0); out.push({ name: t('bg'), cv, x: 0, y: 0, area: 1e12 });
+    }
   }
   for (const L of items) { const t = segCut(L, 1); out.push({ name: L.name, cv: t.cv, x: t.px, y: t.py, area: L.area }); await _yield(); }
   return out;
@@ -271,7 +327,7 @@ function segBindD() {
     if (id === 'bSave') { doSave(); return; }
     if (id === 'bCopy') { doCopy(); return; }
     if (id === 'bSvg') { doSvg(); return; }
-    if (id === 'bNew') { renderEmpty(); return; }
+    if (id === 'bNew') { api.importImage(); return; }
     if (id === 'bClear') {
       const killed = SEG.layers.slice();
       if (!killed.length) { toast(t('noElems')); return; }
@@ -282,7 +338,14 @@ function segBindD() {
       return;
     }
     const row = e.target.closest('.segRow, .segCard');
-    if (row && !e.target.matches('input')) { const L = SEG.layers.find(l => l.id === row.dataset.l); if (L) { L.on = !L.on; SEG.sel = new Set([L.id]); segList(); segRender(); } }
+    if (row && !e.target.matches('input')) {
+      const L = SEG.layers.find(l => l.id === row.dataset.l);
+      if (L) {
+        const tile = SEG.tiles[L.tile];
+        if (tile && tile !== segCurTile()) setCurTile(tile);   // 点哪张图的元素，就切到那张图
+        L.on = !L.on; SEG.sel = new Set([L.id]); segList(); segRender();
+      }
+    }
   };
   host.oninput = (e) => {
     const sp = e.target.dataset && e.target.dataset.sp;
@@ -294,6 +357,8 @@ function segBindD() {
   };
   const cv = $('#segCv');
   cv.onpointermove = (e) => {
+    const p = segWallPt(e);
+    if (p.tile !== segCurTile()) { if (SEG.hov) { SEG.hov = null; segRender(); } return; }
     if (SEG.tool === 'lasso' && SEG.lasso) { SEG.lasso.push(segPt(e)); segRender(); return; }
     if (SEG.tool !== 'pick') return;
     const [x, y] = segPt(e), L = segAt(x, y), id = L ? L.id : null; if (id !== SEG.hov) { SEG.hov = id; segRender(); }
@@ -331,11 +396,18 @@ document.addEventListener('keydown', (e) => {
 async function openDataURL(url, name) {
   try {
     const img = new Image(); img.src = url; await img.decode();
-    openImage(img, img.naturalWidth, img.naturalHeight, name);
+    return await openImage(img, img.naturalWidth, img.naturalHeight, name);
   } catch (e) { toast(t('badImg')); }
 }
 async function openFile(f) {
-  try { const bm = await createImageBitmap(f); openImage(bm, bm.width, bm.height, f.name || t('image')); } catch (e) { toast(t('badImg')); }
+  try { const bm = await createImageBitmap(f); return await openImage(bm, bm.width, bm.height, f.name || t('image')); } catch (e) { toast(t('badImg')); }
+}
+/* 批量导入：一次选多张，依次拆开，元素全部汇总 */
+async function openFiles(list) {
+  let n = 0;
+  for (const f of list) { const c = await openFile(f); if (c) n += c; }
+  toast(t('batchDone', { img: list.length, n }));
+  return n;
 }
 /* 外部拖图进来：按当前页签决定怎么处理
  * 拆元素页 → 导入并拆解；画板 → 当图层/底图；素材库 → 直接存进库；SVG 库 / SVG 画布 → 当 SVG 处理 */
@@ -353,17 +425,16 @@ const DROP_HINT = { 'v-edit': 'dropToSplit', 'v-lib': 'dropToLib', 'v-svglib': '
   const h = $('#dropHint'); if (h) h.classList.remove('on');
 }));
 document.addEventListener('drop', async (e) => {
-  const files = [...(e.dataTransfer && e.dataTransfer.files || [])];
-  const f = files.find(x => x.type && x.type.startsWith('image/'));
-  if (!f) return;
+  const files = [...(e.dataTransfer && e.dataTransfer.files || [])].filter(x => x.type && x.type.startsWith('image/'));
+  if (!files.length) return;
   const v = curView();
   if (v === 'v-board') return;                                     // 画板自己接（拖进去当图层 / 首张当底图）
-  if (v === 'v-lib') { await saveDroppedToLib(f); return; }
-  if ((v === 'v-svglib' || v === 'v-svgcanvas') && /svg/i.test((f.type || '') + f.name)) {
-    if (v === 'v-svglib') { await SvgLib.importFile(f); } else { await SvgCanvas.openFile(f); }
+  if (v === 'v-lib') { await saveDroppedToLib(files[0]); return; }
+  if ((v === 'v-svglib' || v === 'v-svgcanvas') && /svg/i.test((files[0].type || '') + files[0].name)) {
+    if (v === 'v-svglib') { await SvgLib.importFile(files[0]); } else { await SvgCanvas.openFile(files[0]); }
     return;
   }
-  openFile(f);                                                      // 拆元素页：导入并拆
+  await openFiles(files);                                           // 拆元素：一次多张，全部拆开
 });
 /* 把图片从桌面拖到左侧导航按钮上 = 直接用那个功能处理它（和拖进右边工作区不一样） */
 const NAV_DROP = {
@@ -600,6 +671,7 @@ function refreshHint() { const f = (a) => pretty(a).replace(/ \+ /g, '+'); $('#h
 (async function () {
   CFG = await api.getSettings(); applyAll(); renderEmpty();
   api.onImage((d) => openDataURL(d.dataURL, d.name));
+  api.onImages((d) => { (d.items || []).forEach(it => openDataURL(it.dataURL, it.name)); });
   api.onSettings((s) => { CFG = s; applyAll(); });
   api.onToast((m) => toast(m));
   api.onNav((v) => showView(v));

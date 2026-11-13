@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('xapi', {
   onNav: (cb) => ipcRenderer.on('nav', (e, v) => cb(v)),
   onUpdate: (cb) => ipcRenderer.on('update', (e, u) => cb(u)),
   onImage: (cb) => ipcRenderer.on('capture:image', (e, d) => cb(d)),
+  onImages: (cb) => ipcRenderer.on('capture:images', (e, d) => cb(d)),
   onSettings: (cb) => ipcRenderer.on('settings:changed', (e, s) => cb(s)),
   onToast: (cb) => ipcRenderer.on('toast', (e, t) => cb(t)),
   /* 框选覆盖层用 */

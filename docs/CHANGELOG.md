@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.4
+
+- **Batch splitting**: you can now select several images at once (button or drag & drop). Each one is split automatically and every element ends up in a single list; clicking an element jumps to the image it came from.
+- **The Extract page is now a contact sheet**: images are scaled to a uniform size and tiled in a grid on one big canvas. The one you are working on is highlighted; scroll to zoom in for detail, drag to pan, and get the whole batch at a glance before you pick.
+- **Edge smoothing & gap repair (on by default)**: on export, small gaps along the edge are filled, enclosed holes are closed, and the alpha transition is smoothed — no more broken outlines or stair-stepped jaggies. Pure local math, no network and no model; switch it off in Settings to export exactly as split.
+- The rail logo is now redrawn from the icon’s own geometry: the white dashed frame inside the orange rounded square keeps flowing around the centre dot.
+- Fix: the SVG canvas kept the previous language’s wording after switching the interface language.
+- Fix: the element list jumped back to the top when it was redrawn (scrolling down and then clicking an element sent you back to the first row). The scroll position is kept now.
+- The element panel is a denser card grid that reflows with the sidebar width, so the empty space is used.
+
 ## 1.0.3
 
 - Fix: “Check for updates” reported HTTP 301. The GitHub account was renamed, so the old repository path redirects — the correct path is used now and the request follows redirects automatically.

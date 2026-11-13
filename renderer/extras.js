@@ -35,7 +35,8 @@
   /* 视图：缩放 + 平移 */
   function applyView() {
     const cv = $('#segCv'), st = $('.segStage'); if (!cv || !st || !SEG.src) return;
-    const { w, h } = SEG.src;
+    /* 缩放的是整面拼贴墙，不只是当前那张图 */
+    const w = SEG.wall.w || SEG.src.w, h = SEG.wall.h || SEG.src.h;
     if (V.fit) {
       const sw = st.clientWidth, sh = st.clientHeight; if (!sw || !sh) return;
       V.z = Math.max(0.02, Math.min((sw - 32) / w, (sh - 32) / h, 1)); V.x = (sw - w * V.z) / 2; V.y = (sh - h * V.z) / 2;
@@ -330,11 +331,14 @@ async function hdDecorate() {
     const box = document.createElement('div'); box.className = 'set';
     box.innerHTML = `<h3>${t('sTools')}</h3>
       <label class="item"><div><div class="t">${t('sHD')}</div><div class="d">${t('sHDD', { n: HD.LOW })}</div></div><input type="checkbox" class="sw" id="sHD" ${CFG.autoHD ? 'checked' : ''}></label>
+      <label class="item"><div><div class="t">${t('sEdge')}</div><div class="d">${t('sEdgeD')}</div></div><input type="checkbox" class="sw" id="sEdge" ${CFG.edgeSmooth === false ? '' : 'checked'}></label>
       <div class="item"><div><div class="t">${t('aiModel')}</div><div class="d">${t('aiModelDesc')}</div></div>
         <select id="sAiModel"><option value="q8">${t('aiModelQ')} · ${t('aiModelQDesc')}</option><option value="fp32">${t('aiModelF')} · ${t('aiModelFDesc')}</option></select></div>
       <div class="item"><div><div class="t">${t('sKeys')}</div><div class="d">${t('sKeysD')}</div></div><button class="btn" id="sKeys">${t('viewBtn')}</button></div>`;
     sets[Math.min(1, sets.length - 1)].after(box);
     $('#sHD').onchange = async (e) => { const r = await api.setSettings({ autoHD: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.autoHD = e.target.checked; };
+    const se = $('#sEdge');
+    if (se) se.onchange = async (e) => { const r = await api.setSettings({ edgeSmooth: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.edgeSmooth = e.target.checked; if (r && r.settings) applyAll(); };
     const sm = $('#sAiModel');
     if (sm) {
       sm.value = (CFG && CFG.aiModel) || 'q8';
