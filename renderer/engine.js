@@ -11,12 +11,14 @@ function segAddTile(src,name){
 }
 function segLayout(){
   const ts=SEG.tiles;if(!ts.length){SEG.wall={w:0,h:0};return}
-  const H=SEG.tileH,GAP=SEG.gap;
-  let sc=1;for(const t of ts)sc=Math.min(sc,H/t.h);
+  const GAP=SEG.gap;
+  /* 所有图统一缩放（大小一致才好看），但高度按实际内容算，别留空白 */
+  let sc=1;for(const t of ts)sc=Math.min(sc,SEG.tileH/t.h);
   let tw=0;for(const t of ts){t.sc=sc;tw=Math.max(tw,t.w*sc)}
   const cols=Math.max(1,Math.ceil(Math.sqrt(ts.length))),rows=Math.ceil(ts.length/cols);
-  ts.forEach((t,i)=>{t.x=(i%cols)*(tw+GAP);t.y=Math.floor(i/cols)*(H+GAP)});
-  SEG.wall={w:cols*(tw+GAP)-GAP,h:rows*(H+GAP)-GAP};
+  const rowH=[];ts.forEach((t,i)=>{const r=Math.floor(i/cols);rowH[r]=Math.max(rowH[r]||0,t.h*t.sc)});
+  ts.forEach((t,i)=>{const r=Math.floor(i/cols);t.x=(i%cols)*(tw+GAP);t.y=rowH.slice(0,r).reduce((a,b)=>a+b+GAP,0)});
+  SEG.wall={w:cols*(tw+GAP)-GAP,h:rowH.reduce((a,b)=>a+b+GAP,0)-GAP};
 }
 /** 画布坐标 → 落在哪张图上 */
 function segTileAt(wx,wy){
