@@ -37,10 +37,9 @@ Get the file for your system from [Releases](https://github.com/lertone/PixPeel/
 
 | System | File | Notes |
 | --- | --- | --- |
-| Windows (not sure which one? take this) | `PixPeel-Setup-x.y.z-win.exe` | One installer that adapts to 64-bit / 32-bit / ARM, about 230 MB |
-| Windows 64-bit (most PCs) | `PixPeel-Setup-x.y.z-win-x64.exe` | Wizard: license → install path → progress → optional desktop shortcut |
-| Windows 32-bit | `PixPeel-Setup-x.y.z-win-ia32.exe` | Older PCs |
-| Windows on ARM | `PixPeel-Setup-x.y.z-win-arm64.exe` | |
+| Windows 64-bit (most PCs — take this) | `PixPeel-Setup-x.y.z-win-x64.exe` | Wizard: license → install path → progress → optional desktop shortcut |
+| Windows on ARM | `PixPeel-Setup-x.y.z-win-arm64.exe` | Native ARM build; if unsure use the x64 one, Windows emulates it fine |
+| Windows 32-bit | `PixPeel-Setup-x.y.z-win-ia32.exe` | Only for very old 32-bit systems |
 | macOS Apple Silicon | `PixPeel-x.y.z-mac-arm64.dmg` | a `.zip` of the same build is there too |
 | macOS Intel | `PixPeel-x.y.z-mac-x64.dmg` | a `.zip` of the same build is there too |
 | Linux 64-bit | `PixPeel-x.y.z-linux-x86_64.AppImage` / `…-linux-amd64.deb` / `…-linux-x86_64.rpm` | AppImage needs no install, deb for Debian / Ubuntu, rpm for Fedora / openSUSE |
