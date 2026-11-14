@@ -199,10 +199,18 @@ function segApply(full){
 /* ── 边缘处理：补小缺口 + 润化边缘（默认开启） ──
  * 拆出来的元素边缘常有三种毛病：细小的断口、1px 锯齿、边缘发虚。
  * 这里用纯本机算法处理，不联网、不加载任何模型：
- *   ① 形态学闭运算（先膨胀后腐蚀）→ 把边缘上的小缺口补上、连上断开的地方
- *   ② 导出时对 alpha 通道做一次轻微平滑 → 消掉台阶状的锯齿
+ *   ① 形态学闭运算（先膨胀后腐蚀）→ 把边缘上的 1~2px 小缺口补上
+ *   ② 裂缝填充 → 把「两侧都有前景、但中间断开」的窄缝补上（最多 4px），
+ *      只在前景左右（或上下）都存在时才补，所以不会把两个离得远的元素粘在一起
+ *   ③ 洪水填充 → 填掉被完全包住的洞（字母 O 中间那种）
+ *   ④ 导出时对 alpha 通道做一次轻微平滑 → 消掉台阶状的锯齿
  */
 const segEdgeOn = () => !(typeof CFG !== 'undefined' && CFG && CFG.edgeSmooth === false);
+/** 最多补多宽的裂缝（像素）。0 = 不补。默认 4 */
+const segGapWidth = () => {
+  const v = (typeof CFG !== 'undefined' && CFG && CFG.edgeGap != null) ? +CFG.edgeGap : 4;
+  return Number.isFinite(v) && v > 0 ? Math.min(8, Math.round(v)) : 0;
+};
 function segDilate(m, w, h, r) {
   const a = new Uint8Array(w * h), b = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -243,12 +251,47 @@ function segFillHoles(m,w,h){
   for(let i=0;i<m.length;i++)if(!m[i]&&!seen[i])out[i]=1;
   return out;
 }
+/**
+ * 补裂缝：把「中间断开、但两侧都是前景」的窄缝接上。
+ * 判定方式是从每个背景像素往左右（和上下）各看几格，
+ * 只有当两个方向都找到前景、且缝隙总宽不超过 maxGap 时才补。
+ * 所以两个离得很远的元素不会被粘在一起。
+ * 走样（阶梯状）的裂缝需要多跑几遍才会完全合拢。
+ */
+function segFillCracks(m, w, h, maxGap) {
+  const D = maxGap || 5;              // 缝隙最大宽度（含两侧各一格前景之间的空白）
+  let cur = m;
+  for (let pass = 0; pass < 3; pass++) {
+    const out = new Uint8Array(cur);
+    let changed = false;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (cur[i]) { out[i] = 1; continue; }
+        let r = 0, l = 0, dn = 0, up = 0;
+        for (let k = 1; k <= D; k++) {
+          if (!r && x + k < w && cur[i + k]) r = k;
+          if (!l && x - k >= 0 && cur[i - k]) l = k;
+          if (!dn && y + k < h && cur[i + k * w]) dn = k;
+          if (!up && y - k >= 0 && cur[i - k * w]) up = k;
+        }
+        /* 缝隙宽度 = 到两侧前景的距离之和 - 1 */
+        if ((r && l && r + l - 1 <= D) || (dn && up && dn + up - 1 <= D)) { out[i] = 1; changed = true; }
+      }
+    }
+    cur = out;
+    if (!changed) break;
+  }
+  return cur;
+}
 /** 补过缺口的蒙版（结果缓存在图层上，避免每次重绘都算） */
 function segPolishMask(L) {
   if (L.mp) return L.mp;
   if (!segEdgeOn() || !L.m) return (L.mp = L.m);
-  /* 先闭运算补上边缘上的小缝隙，再填掉封闭的洞 */
+  /* 先闭运算补上边缘上的小缝隙，再接窄裂缝，最后填掉封闭的洞 */
   let m = segErode(segDilate(L.m, L.bw, L.bh, 1), L.bw, L.bh, 1);
+  const gap = segGapWidth();
+  if (gap > 0) m = segFillCracks(m, L.bw, L.bh, gap);
   m = segFillHoles(m, L.bw, L.bh);
   return (L.mp = m);
 }

@@ -76,6 +76,7 @@
       countSelImg: '{n} 个元素 · {img} 张图 · 已选 {s}',
       batchDone: '{img} 张图拆完了，一共 {n} 个元素',
       sEdge: '边缘平滑与补缺口', sEdgeD: '导出时自动补上边缘的小缺口、抹平锯齿（纯本机计算，不联网）；关掉就按原样输出',
+      sGap: '补缺口宽度', sGapD: '把断开的地方接上，最多补多宽的缝。调得越大越容易把挨得很近的两个元素连成一个；选「不额外补」时只保留基本的 1–2px 缝合和边缘平滑', sGapOff: '不额外补',
       libClear: '清空', libClearUndo: '要清空 {n} 个', libCleared: '已清空 {n} 个', navDropNo: '这个栏目不接收图片',
       /* AI 模型：量化 / 浮点 */
       aiModel: 'AI 模型', aiModelQ: '量化版（推荐）', aiModelF: '浮点版（更精确）',
@@ -200,6 +201,7 @@
       countSelImg: '{n} element(s) · {img} image(s) · {s} selected',
       batchDone: 'Split {img} image(s) — {n} element(s) in total',
       sEdge: 'Edge smoothing & gap repair', sEdgeD: 'On export, small gaps along the edge are filled and jaggies are smoothed (local only, no network). Turn it off to export exactly as split.',
+      sGap: 'Gap repair width', sGapD: 'How wide a break may be and still be joined up. The wider, the more likely two very close elements get merged into one; “Off” keeps only the basic 1–2px closing and edge smoothing', sGapOff: 'Off',
       libClear: 'Clear', libClearUndo: 'About to clear {n}', libCleared: 'Cleared {n}', navDropNo: 'This section does not take images',
       /* AI model: quantized / float */
       aiModel: 'AI model', aiModelQ: 'Quantized (recommended)', aiModelF: 'Full precision',

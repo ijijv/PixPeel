@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5
+
+- **Better gap repair**: only gaps of 2 px or less could be closed before. There is now a crack filler that joins a break **only where there is foreground on both sides and the gap is narrow**, so 3–4 px notches and stepped/jagged cracks get closed up (measured: 1–4 px straight gaps fully repaired, jagged cracks completely closed) without two distant elements being glued together.
+- New setting “Gap repair width”: widen or narrow how much gets bridged (default 4 px). The wider it is, the more likely two very close elements get merged into one — your call.
+- Measured effect of the edge smoothing: a hard edge used to have only two alpha levels (0 / 255); it now gets a gradient transition band (measured: 0 → 200 transitional pixels), which noticeably reduces stair-step jaggies.
+
 ## 1.0.4
 
 - **Batch splitting**: you can now select several images at once (button or drag & drop). Each one is split automatically and every element ends up in a single list; clicking an element jumps to the image it came from.

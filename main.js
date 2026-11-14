@@ -32,6 +32,7 @@ const DEFAULTS = () => ({
   autoHide: true,
   autoHD: false,
   edgeSmooth: true,
+  edgeGap: 4,
   aiModel: 'q8',
   notify: true,
   openAtLogin: false,

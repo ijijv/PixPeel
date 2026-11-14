@@ -332,6 +332,8 @@ async function hdDecorate() {
     box.innerHTML = `<h3>${t('sTools')}</h3>
       <label class="item"><div><div class="t">${t('sHD')}</div><div class="d">${t('sHDD', { n: HD.LOW })}</div></div><input type="checkbox" class="sw" id="sHD" ${CFG.autoHD ? 'checked' : ''}></label>
       <label class="item"><div><div class="t">${t('sEdge')}</div><div class="d">${t('sEdgeD')}</div></div><input type="checkbox" class="sw" id="sEdge" ${CFG.edgeSmooth === false ? '' : 'checked'}></label>
+      <div class="item"><div><div class="t">${t('sGap')}</div><div class="d">${t('sGapD')}</div></div>
+        <select id="sGap"><option value="0">${t('sGapOff')}</option><option value="2">2 px</option><option value="3">3 px</option><option value="4">4 px</option><option value="5">5 px</option><option value="6">6 px</option></select></div>
       <div class="item"><div><div class="t">${t('aiModel')}</div><div class="d">${t('aiModelDesc')}</div></div>
         <select id="sAiModel"><option value="q8">${t('aiModelQ')} · ${t('aiModelQDesc')}</option><option value="fp32">${t('aiModelF')} · ${t('aiModelFDesc')}</option></select></div>
       <div class="item"><div><div class="t">${t('sKeys')}</div><div class="d">${t('sKeysD')}</div></div><button class="btn" id="sKeys">${t('viewBtn')}</button></div>`;
@@ -339,6 +341,18 @@ async function hdDecorate() {
     $('#sHD').onchange = async (e) => { const r = await api.setSettings({ autoHD: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.autoHD = e.target.checked; };
     const se = $('#sEdge');
     if (se) se.onchange = async (e) => { const r = await api.setSettings({ edgeSmooth: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.edgeSmooth = e.target.checked; if (r && r.settings) applyAll(); };
+    const sg = $('#sGap');
+    if (sg) {
+      sg.value = String((CFG && CFG.edgeGap != null) ? CFG.edgeGap : 4);
+      sg.onchange = async (e) => {
+        const v = +e.target.value;
+        const r = await api.setSettings({ edgeGap: v });
+        if (r && r.settings) CFG = r.settings; else CFG.edgeGap = v;
+        /* 强度变了，之前算好的蒙版要作废重算 */
+        SEG.layers.forEach(L => { L.mp = null; });
+        segList(); segRender();
+      };
+    }
     const sm = $('#sAiModel');
     if (sm) {
       sm.value = (CFG && CFG.aiModel) || 'q8';
